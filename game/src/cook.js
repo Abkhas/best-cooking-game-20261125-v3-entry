@@ -22,6 +22,8 @@ export class Cook {
     this.wok2 = { items: [], cooking: 0, cookTime: 0, ready: false, burnt: false, recipe: null };
     this.plate = null; // recipe id waiting on the plate counter
     this.plateHot = false; // the plated dish was lifted while HOT
+    this.plateGarnished = false; // a garnish pass was done on the plated dish
+    this.plateTip = 0; // +$15 tip banked by the garnish pass
     this.actionText = '';
     this.actionTimer = 0;
     this._sfx = null;
@@ -143,10 +145,21 @@ export class Cook {
 
   usePlate(sfx) {
     const dish = this.carrying.find((c) => c.id.startsWith('dish:'));
-    if (!dish) { this.say('Bring a cooked dish!'); sfx?.deny(); return; }
+    // Garnish pass: hands empty, a dish already plated, not garnished yet —
+    // one extra step at the plate counter banks a +$15 tip (TABUR!).
+    if (!dish && this.plate !== null && !this.plateGarnished) {
+      this.plateGarnished = true;
+      this.plateTip = 15;
+      this.say('Garnished! +$15 tip');
+      sfx?.done();
+      return;
+    }
+    if (!dish) { this.say(this.plate !== null ? 'Already garnished — serve it!' : 'Bring a cooked dish!'); sfx?.deny(); return; }
     if (this.plate !== null) { this.say('Plate is busy!'); sfx?.deny(); return; }
     this.plate = dish.id.slice(5);
     this.plateHot = dish.hot === true;
+    this.plateGarnished = false;
+    this.plateTip = 0;
     this.carrying = this.carrying.filter((c) => c !== dish);
     this.say(`${this.plateName()} plated — serve it!`);
     sfx?.done();
@@ -159,7 +172,7 @@ export class Cook {
 
   serve(board, sfx) {
     if (this.plate === null) { this.say('Nothing to serve!'); sfx?.deny(); return; }
-    const result = board.serveDish(this.plate, this.plateHot);
+    const result = board.serveDish(this.plate, this.plateHot, this.plateGarnished);
     if (result.served) {
       this.say(`Served! +${result.coins}`);
       sfx?.serve();
@@ -170,6 +183,8 @@ export class Cook {
     }
     this.plate = null;
     this.plateHot = false;
+    this.plateGarnished = false;
+    this.plateTip = 0;
   }
 
   trash(sfx) {
@@ -181,7 +196,7 @@ export class Cook {
       }
     }
     if (this.carrying.length > 0) { this.carrying = []; cleared = true; }
-    if (this.plate !== null) { this.plate = null; this.plateHot = false; cleared = true; }
+    if (this.plate !== null) { this.plate = null; this.plateHot = false; this.plateGarnished = false; this.plateTip = 0; cleared = true; }
     this.say(cleared ? 'Trashed.' : 'Nothing to trash.');
     if (cleared) sfx?.trash();
   }

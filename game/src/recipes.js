@@ -55,7 +55,24 @@ export function matchRecipe(carriedIds) {
   return RECIPES.find((r) => [...r.needs].sort().join(',') === sorted) ?? null;
 }
 
-/** Short display name for a recipe id, e.g. 'ayam-geprek' -> 'Ayam Geprek'. */
+/** The route plan from the current hands state: the next stops, in order.
+ *  The HUD chip and the gold dashed floor line both read this one function,
+ *  so the plan on the floor and the plan in the HUD can never disagree.
+ *  Steps are station labels, or an ingredient name when a crate is next. */
+export function routeSteps(cook) {
+  const carried = cook.carrying.map((c) => c.id);
+  const dish = carried.find((id) => id.startsWith('dish:'));
+  if (cook.plate) return ['SERVE'];
+  if (dish) return ['PLATE', 'SERVE'];
+  if (matchRecipe(carried)) return ['WOK', 'PLATE', 'SERVE'];
+  if (cook.carrying.find((c) => !c.prepped)) return ['CHOP', 'WOK', 'PLATE', 'SERVE'];
+  const partial = RECIPES.find((r) => carried.length > 0 && carried.every((id) => r.needs.includes(id)));
+  if (partial) {
+    const missing = partial.needs.find((n) => !carried.includes(n));
+    return [INGREDIENTS[missing].name.toUpperCase(), 'WOK', 'PLATE', 'SERVE'];
+  }
+  return ['CRATES', 'WOK', 'PLATE', 'SERVE'];
+}
 export function recipeName(id) {
   const r = RECIPES.find((x) => x.id === id);
   return r ? r.name : id;

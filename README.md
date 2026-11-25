@@ -14,7 +14,14 @@ ticket's patience runs out.
 - **R** restart the shift, **M** mute.
 - 3-minute shift, 3 hearts. A ticket that runs out of patience costs a heart.
 - Lift a dish within 5 seconds of it leaving the wok and it goes out HOT: +$10 tip.
+- Garnish a plated dish at the plate counter before serving: +$15 tip.
+- Every 5th ticket is a CRITIC — 1.5× coins, but only 70% patience.
 - Serve fast in a row to build a combo (up to +10 coins per serve).
+- The shift runs in 4 legs (OPENING → LUNCH RUSH → DINNER RUSH → LAST CALL),
+  shown as `LEG n/4` under the timer; up to 6 tickets can wait at once.
+- Follow the gold dashed route line on the floor — and the ROUTE chip under the
+  toast — it always points at your next stop (crates → chop → wok → plate → serve).
+- The warung's regulars eat at the tables: Pak Darmo (LAPAR!) and Bu Lastri (SENANG).
 
 ## Recipes
 
@@ -34,10 +41,13 @@ seconds past ready burns and must be trashed.
 
 - Static files only, no network at runtime. three.js r160 is vendored as
   `game/vendor/three.module.min.js`.
-- Source is split by job: `recipes.js` (dishes), `orders.js` (ticket board),
-  `kitchen.js` (floor plan), `cook.js` (hands and stations), `world3d.js`
-  (the 3D warung), `hud.js` (order board, timer, score), `audio.js`
-  (synthesized sizzle and dings), `shots.js` (staged scenes + self-test),
+- Source is split by job: `recipes.js` (dishes + the route planner),
+  `orders.js` (ticket board, up to 6 waiting), `kitchen.js` (floor plan),
+  `cook.js` (hands, stations, garnish pass), `world3d.js` (the 3D warung —
+  golden-hour sun, shadows, window sunset, batik cloth, light-pooling lamps,
+  layered dishes, burn countdowns, route line, named customers),
+  `hud.js` (order board, timer, score, route chip, burn banner),
+  `audio.js` (synthesized sizzle and dings), `shots.js` (staged scenes + self-test),
   `main.js` (loop and input).
 - Screenshots are real renders of the game's own code, staged with
   `?shot=cover|orders|cooking|plating`. `?selftest=1` plays one full order

@@ -6,15 +6,16 @@
 // one-line prompt for the nearest station. It also owns the title and
 // shift-over screens.
 
-import { INGREDIENTS, RECIPES, matchRecipe, recipeName } from './recipes.js';
+import { INGREDIENTS, RECIPES, matchRecipe, recipeName, routeSteps } from './recipes.js';
 import { SHIFT_SECONDS } from './orders.js';
 
-/** The named rush phase for this far into the shift. */
+/** The named rush phase for this far into the shift, with its leg of 4.
+ *  A total proves a campaign; a bare timer proves nothing. */
 export function rushPhase(elapsedSec) {
-  if (elapsedSec < 60) return 'OPENING';
-  if (elapsedSec < 120) return 'LUNCH RUSH';
-  if (elapsedSec < 150) return 'DINNER RUSH';
-  return 'LAST CALL';
+  if (elapsedSec < 60) return 'OPENING · LEG 1/4';
+  if (elapsedSec < 120) return 'LUNCH RUSH · LEG 2/4';
+  if (elapsedSec < 150) return 'DINNER RUSH · LEG 3/4';
+  return 'LAST CALL · LEG 4/4';
 }
 
 export class Hud {
@@ -31,6 +32,8 @@ export class Hud {
       prompt: document.getElementById('prompt'),
       say: document.getElementById('say'),
       toast: document.getElementById('toast'),
+      route: document.getElementById('route'),
+      burnbar: document.getElementById('burnbar'),
       title: document.getElementById('title-screen'),
       over: document.getElementById('over-screen'),
       overStats: document.getElementById('over-stats'),
@@ -77,8 +80,8 @@ export class Hud {
         const step = ing.prep === 'chop' ? 'CHOP+WOK' : 'WOK';
         return `<span class="t-pill"><span class="dot" style="background:${ing.dot}"></span>${ing.name} <em>${step}</em></span>`;
       }).join('');
-      return `<div class="ticket ${cls} ${t.flash > 0 ? 'flash' : ''}">
-        <div class="t-name">${t.recipe.name}<span class="t-secs">${Math.ceil(t.patience)}s · $${t.recipe.price}</span></div>
+      return `<div class="ticket ${cls} ${t.flash > 0 ? 'flash' : ''} ${t.vip ? 'vip' : ''}">
+        <div class="t-name">${t.recipe.name}${t.vip ? '<span class="t-vip">★ CRITIC ×1.5</span>' : ''}<span class="t-secs">${Math.ceil(t.patience)}s · $${t.recipe.price}</span></div>
         <div class="t-needs">${pills}</div>
         <div class="t-bar"><div class="t-fill" style="width:${Math.round(share * 100)}%"></div></div>
       </div>`;
@@ -113,6 +116,29 @@ export class Hud {
       this.el.chopbar.firstElementChild.style.width = `${Math.round(frac * 100)}%`;
     } else {
       this.el.chopbar.style.display = 'none';
+    }
+
+    // Route planner chip: the next stops, in order — the plan is the game.
+    this.el.route.textContent = `ROUTE · ${routeSteps(cook).join(' → ')}`;
+
+    // Burn / garnish banner under the timer: the pressure, in the HUD too.
+    // A ready wok counts down 5s to burnt; a garnished plate banks +$15.
+    let burnLeft = null;
+    for (const wok of [cook.wok, cook.wok2]) {
+      if (wok.ready && !wok.burnt && wok.cookTime > 0) {
+        const left = 5 - (wok.cooking - wok.cookTime);
+        burnLeft = burnLeft === null ? left : Math.min(burnLeft, left);
+      }
+    }
+    if (burnLeft !== null) {
+      this.el.burnbar.textContent = `🔥 BURN IN ${Math.ceil(Math.max(0, burnLeft))}s — GRAB IT!`;
+      this.el.burnbar.className = 'show burn';
+    } else if (cook.plateGarnished) {
+      this.el.burnbar.textContent = '✦ GARNISHED — +$15 TIP ON THE PLATE';
+      this.el.burnbar.className = 'show garnish';
+    } else {
+      this.el.burnbar.textContent = '';
+      this.el.burnbar.className = '';
     }
 
     // Toast notification (serve callouts, HOT tips, wok-ready alerts).

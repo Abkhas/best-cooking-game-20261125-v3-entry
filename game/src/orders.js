@@ -20,7 +20,7 @@ export class OrderBoard {
     this.comboTimer = 0;
   }
 
-  get maxTickets() { return 5; }
+  get maxTickets() { return 6; }
 
   spawnInterval(elapsedSec) {
     return Math.max(7, 14 - elapsedSec / 25);
@@ -33,10 +33,14 @@ export class OrderBoard {
   spawnTicket(elapsedSec) {
     const pool = unlockedRecipes(elapsedSec);
     const recipe = pool[Math.floor(Math.random() * pool.length)];
-    const patience = this.patienceFor(elapsedSec);
+    // Every 5th ticket is a CRITIC: 1.5x coins, but only 70% patience.
+    const vip = this.nextId % 5 === 0;
+    const patience = vip
+      ? Math.round(this.patienceFor(elapsedSec) * 0.7)
+      : this.patienceFor(elapsedSec);
     this.tickets.push({
       id: this.nextId++, recipe, patience, patienceMax: patience,
-      born: elapsedSec, flash: 0,
+      born: elapsedSec, flash: 0, vip,
     });
   }
 
@@ -63,13 +67,15 @@ export class OrderBoard {
   /**
    * Serve a finished dish. Returns the coins earned, or 0 when no ticket wants it.
    * A dish lifted within 5 seconds of leaving the wok is HOT: +$10 tip.
+   * A dish that got the garnish pass at the plate counter: +$15 tip.
    */
-  serveDish(recipeId, hot = false) {
+  serveDish(recipeId, hot = false, garnish = false) {
     const idx = this.tickets.findIndex((t) => t.recipe.id === recipeId);
     if (idx < 0) return { coins: 0, served: false };
     const ticket = this.tickets[idx];
     const patienceShare = Math.max(0, ticket.patience / ticket.patienceMax);
-    const earned = Math.round(ticket.recipe.price * (0.6 + 0.4 * patienceShare)) + this.combo * 10 + (hot ? 10 : 0);
+    let earned = Math.round(ticket.recipe.price * (0.6 + 0.4 * patienceShare)) + this.combo * 10 + (hot ? 10 : 0) + (garnish ? 15 : 0);
+    if (ticket.vip) earned = Math.round(earned * 1.5); // critic pays 1.5x
     this.tickets.splice(idx, 1);
     this.served++;
     this.coins += earned;

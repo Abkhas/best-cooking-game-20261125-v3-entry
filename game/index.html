@@ -17,6 +17,8 @@
     padding: 5px 10px; margin-bottom: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
   .ticket.low { border-color: #e53935; }
   .ticket.low .t-name { color: #ff8a80; }
+  .ticket.vip { border-color: #e8b64c; box-shadow: 0 0 0 2px rgba(232,182,76,.35), 0 2px 8px rgba(0,0,0,.5); }
+  .t-vip { color: #e8b64c; font-size: 12px; font-weight: 900; letter-spacing: .06em; margin-left: 6px; }
   .ticket.flash { animation: flash .3s ease-in-out 2; }
   @keyframes flash { 50% { background: rgba(229,57,53,.55); } }
   .ticket.empty { color: #d7ccc8; font-size: 13px; border-style: dashed; }
@@ -28,8 +30,10 @@
   .t-fill { height: 100%; background: #66bb6a; border-radius: 4px; }
   .ticket.mid .t-fill { background: #ffb300; }
   .ticket.low .t-fill { background: #e53935; }
-  /* Timer, top centre */
-  #timer-wrap { left: 50%; top: 10px; transform: translateX(-50%); text-align: center; }
+  /* Timer, top centre — dark pill so it never collides with the poster */
+  #timer-wrap { left: 50%; top: 10px; transform: translateX(-50%); text-align: center;
+    background: rgba(24,16,10,.78); border: 2px solid #ffd166; border-radius: 14px; padding: 6px 18px 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.6); }
   #timer { font-size: 44px; font-weight: 900; letter-spacing: .06em; color: #fff;
     text-shadow: 0 2px 0 #7a2e1d, 0 4px 12px rgba(0,0,0,.7); line-height: 1; }
   #timer.urgent { color: #ff5252; animation: pulse .8s ease-in-out infinite; }
@@ -39,6 +43,13 @@
     text-shadow: 0 2px 4px rgba(0,0,0,.8); margin-top: 2px; }
   #phase.rush { color: #ff8a65; }
   #record { font-size: 14px; color: #ffe0b2; min-height: 18px; }
+  /* Burn / garnish banner under the timer — hidden unless something is live */
+  #burnbar { display: none; font-size: 16px; font-weight: 900; letter-spacing: .04em;
+    border-radius: 10px; padding: 4px 12px; margin-top: 6px; }
+  #burnbar.show.burn { display: inline-block; color: #fff; background: #c62828;
+    border: 2px solid #ff8a65; animation: pulse .8s ease-in-out infinite; }
+  #burnbar.show.garnish { display: inline-block; color: #1d130c; background: #aed581;
+    border: 2px solid #66bb6a; }
   .t-secs { float: right; font-size: 13px; color: #ffd166; }
   .ticket.low .t-secs { color: #ff8a80; }
   .t-prep { font-size: 11px; color: #ffd166; margin: 0 0 4px; font-weight: 600; }
@@ -50,6 +61,10 @@
     background: #ffd166; border-radius: 12px; padding: 6px 18px; margin-bottom: 8px;
     box-shadow: 0 4px 14px rgba(0,0,0,.6); }
   #toast.show { display: inline-block; }
+  /* Route planner chip: the next stops, in order */
+  #route { display: inline-block; font-size: 14px; font-weight: 800; letter-spacing: .05em;
+    color: #ffd166; background: rgba(24,16,10,.88); border: 2px dashed #ffd166;
+    border-radius: 12px; padding: 4px 14px; margin-bottom: 6px; }
   .carry-item.assembly { border-color: #66bb6a; color: #c8e6c9; }
   /* Score, top right */
   #score { right: 12px; top: 12px; text-align: right; font-weight: 800; font-size: 20px;
@@ -67,8 +82,6 @@
   #chopbar { display: none; width: 260px; height: 12px; margin: 4px auto 0;
     background: rgba(255,255,255,.2); border-radius: 6px; overflow: hidden; border: 1px solid #fff; }
   #chopbar > div { height: 100%; width: 0%; background: #ffd166; }
-  #hint { position: fixed; right: 12px; bottom: 12px; z-index: 5; color: rgba(255,248,231,.8);
-    font-size: 12px; text-align: right; text-shadow: 0 1px 3px rgba(0,0,0,.8); pointer-events: none; }
   /* Title / game-over screens */
   .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; color: #fff8e7;
@@ -93,17 +106,17 @@
 <canvas id="game"></canvas>
 
 <div class="hud" id="orders"><h2>📋 ORDER BOARD</h2></div>
-<div class="hud" id="timer-wrap"><div id="timer">3:00</div><div id="timer-label">SHIFT TIMER</div><div id="phase">OPENING</div></div>
+<div class="hud" id="timer-wrap"><div id="timer">3:00</div><div id="timer-label">SHIFT TIMER</div><div id="phase">OPENING</div><div id="burnbar"></div></div>
 <div class="hud" id="score"><div id="coins">🪙 0</div><div id="hearts">♥♥♥</div><div id="combo"></div><div id="record"></div></div>
 
 <div class="hud" id="bottom">
   <div id="toast"></div>
+  <div id="route"></div>
   <div id="carry"></div>
   <div id="prompt"></div>
   <div id="say"></div>
   <div id="chopbar"><div></div></div>
 </div>
-<div id="hint">WASD / arrows or click to walk · E use station<br>R restart · M mute · 3-minute shift, 3 hearts</div>
 
 <div class="screen" id="title-screen">
   <h1>WOK RUSH 3D</h1>
@@ -111,8 +124,11 @@
   <p>You are the new cook at Warung Mbak Sari, the little warung on the corner
   with the terracotta floor. Grab rice, noodles, egg, chicken, veg and chili from
   the crates, chop what needs chopping, fire two woks at once, plate the dish and
-  ring the bell at the serve window — before patience runs out. Lift a dish fast
-  and it goes out HOT for a +$10 tip. Combos up to ×10, and a rush
+  ring the bell at the serve window — before patience runs out. Follow the gold
+  route line on the floor — it always points at your next stop. Lift a dish fast
+  and it goes out HOT for a +$10 tip; garnish a plated dish for another +$15 —
+  but a ready wok burns in 5 seconds, so grab it or bin it. Every 5th ticket is
+  a CRITIC — 1.5× coins, but only 70% patience. Combos up to ×10, and a rush
   that grows every minute. Five recipes in all — the last, Gado-Gado, unlocks late in the shift.</p>
   <p class="keys">WASD / arrows or click to walk &nbsp;·&nbsp; E use a station &nbsp;·&nbsp; R restart</p>
   <button id="start-btn">▶ START SHIFT</button>

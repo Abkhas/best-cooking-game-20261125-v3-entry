@@ -7,8 +7,8 @@
 // and it mirrors that state into meshes every frame.
 
 import * as THREE from 'three';
-import { STATIONS, DECOR } from './kitchen.js';
-import { INGREDIENTS, recipeName } from './recipes.js';
+import { STATIONS, DECOR, frontPoint } from './kitchen.js';
+import { INGREDIENTS, recipeName, routeSteps } from './recipes.js';
 
 const WOOD = 0x8a5a33;
 const WOOD_DARK = 0x6b4226;
@@ -89,38 +89,270 @@ function floorTexture() {
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 5);
+  tex.repeat.set(8, 7.2);
   return tex;
+}
+
+/** Batik parang: diagonal gold motif on deep maroon — the warung's own cloth.
+ *  This is what makes the room unmistakably ours instead of a generic kitchen. */
+function batikTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 256;
+  const c = cv.getContext('2d');
+  c.fillStyle = '#7a1f1f';
+  c.fillRect(0, 0, 256, 256);
+  c.strokeStyle = '#e8b64c';
+  c.fillStyle = '#e8b64c';
+  c.lineWidth = 3;
+  // Diagonal parang bands with diamonds and dots.
+  for (let k = -8; k < 16; k++) {
+    const ox = k * 32;
+    c.beginPath();
+    c.moveTo(ox, 0); c.lineTo(ox + 128, 256);
+    c.stroke();
+    for (let i = 0; i < 5; i++) {
+      const x = ox + 32 + i * 26;
+      const y = i * 52 + 14;
+      if (x < 0 || x > 256 || y > 256) continue;
+      c.save();
+      c.translate(x, y);
+      c.rotate(Math.PI / 4);
+      c.fillRect(-7, -7, 14, 14);
+      c.restore();
+      c.beginPath(); c.arc(x + 14, y + 26, 3, 0, Math.PI * 2); c.fill();
+    }
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 1);
+  return tex;
+}
+
+/** Sunset outside the window: orange-pink sky, low sun, rooftop + palm silhouettes. */
+function sunsetTexture() {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 320;
+  const c = cv.getContext('2d');
+  const grad = c.createLinearGradient(0, 0, 0, 320);
+  grad.addColorStop(0, '#3b2a63');
+  grad.addColorStop(0.35, '#c94b6d');
+  grad.addColorStop(0.62, '#ff7b3d');
+  grad.addColorStop(1, '#ffb347');
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 512, 320);
+  // Low sun with glare.
+  const glow = c.createRadialGradient(330, 190, 4, 330, 190, 120);
+  glow.addColorStop(0, 'rgba(255,244,200,1)');
+  glow.addColorStop(0.25, 'rgba(255,200,110,0.85)');
+  glow.addColorStop(1, 'rgba(255,150,60,0)');
+  c.fillStyle = glow;
+  c.fillRect(180, 40, 300, 300);
+  c.fillStyle = '#fff3c4';
+  c.beginPath(); c.arc(330, 190, 26, 0, Math.PI * 2); c.fill();
+  // Rooftops and a palm, dark against the sky.
+  c.fillStyle = '#2a1630';
+  c.fillRect(0, 250, 150, 70);
+  c.fillRect(120, 225, 170, 95);
+  c.fillRect(280, 258, 232, 62);
+  c.beginPath(); c.moveTo(120, 225); c.lineTo(205, 185); c.lineTo(290, 225); c.closePath(); c.fill();
+  c.strokeStyle = '#2a1630'; c.lineWidth = 7;
+  c.beginPath(); c.moveTo(450, 320); c.quadraticCurveTo(455, 250, 440, 215); c.stroke();
+  for (let i = 0; i < 6; i++) {
+    const a = Math.PI * (0.9 + i * 0.22);
+    c.beginPath(); c.moveTo(440, 215);
+    c.quadraticCurveTo(440 + Math.cos(a) * 40, 215 + Math.sin(a) * 30 - 12, 440 + Math.cos(a) * 62, 215 + Math.sin(a) * 44);
+    c.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  return tex;
+}
+
+/** A sprite whose text can be redrawn live (burn countdowns, READY states). */
+function dynamicLabel(w = 512, h = 160) {
+  const cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  const tex = new THREE.CanvasTexture(cv);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.userData.noShadow = true;
+  const api = {
+    sprite: sp, last: '',
+    setText(main, sub, opts = {}) {
+      const key = `${main}|${sub || ''}|${opts.bg || ''}`;
+      if (key === api.last) return;
+      api.last = key;
+      const c = cv.getContext('2d');
+      c.clearRect(0, 0, w, h);
+      c.fillStyle = opts.bg || 'rgba(20,16,12,0.88)';
+      c.beginPath(); c.roundRect(4, 4, w - 8, h - 8, 22); c.fill();
+      c.strokeStyle = opts.border || '#ffd166';
+      c.lineWidth = 6; c.stroke();
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = opts.fg || '#fff8e7';
+      c.font = `bold ${sub ? 52 : 56}px system-ui, sans-serif`;
+      c.fillText(main, w / 2, sub ? h / 2 - 30 : h / 2);
+      if (sub) {
+        c.fillStyle = opts.subColor || '#ffd166';
+        c.font = 'bold 34px system-ui, sans-serif';
+        c.fillText(sub, w / 2, h / 2 + 38);
+      }
+      tex.needsUpdate = true;
+    },
+  };
+  return api;
+}
+
+/** One plated dish, layered so it reads at contact-sheet scale: a base mound,
+ *  a fried egg (white + yolk) or noodle nest, and green garnish when asked.
+ *  Every recipe builds differently — no more "blob foods". */
+function buildDishGroup(recipeId, garnished) {
+  const g = new THREE.Group();
+  const plate = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.52, 0.4, 0.06, 24),
+    new THREE.MeshLambertMaterial({ color: 0xffffff }),
+  );
+  plate.position.y = 0.03;
+  g.add(plate);
+  const add = (mesh, x, y, z) => { mesh.position.set(x, y, z); g.add(mesh); return mesh; };
+  const mound = (color, sx = 1, sy = 0.55) => {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), mat(color));
+    m.scale.set(sx, sy, sx);
+    return m;
+  };
+  const eggWhite = (x, z) => {
+    const w = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.05, 14), mat(0xfff8e7));
+    add(w, x, 0.24, z);
+    const yolk = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), mat(0xff9f1c));
+    add(yolk, x, 0.28, z);
+  };
+  const garnishBits = (n = 5) => {
+    const bits = new THREE.Group();
+    for (let i = 0; i < n; i++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.04, 0.07), mat(0x43a047));
+      b.position.set((Math.random() - 0.5) * 0.5, 0.26 + Math.random() * 0.05, (Math.random() - 0.5) * 0.5);
+      b.rotation.y = Math.random() * Math.PI;
+      bits.add(b);
+    }
+    bits.visible = !!garnished;
+    g.add(bits);
+    return bits;
+  };
+  let bits = null;
+  if (recipeId === 'nasi-goreng') {
+    add(mound(0xffcf4d), 0, 0.16, 0); // golden fried-rice mound
+    eggWhite(0.14, 0.1); // fried egg, white + yolk, on top
+    const chili = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.24, 8), mat(0xe53935));
+    chili.rotation.z = Math.PI / 2; add(chili, -0.18, 0.26, -0.08);
+    bits = garnishBits();
+  } else if (recipeId === 'mie-goreng') {
+    const nest = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.11, 8, 16), mat(0xffb347));
+    nest.rotation.x = Math.PI / 2; add(nest, 0, 0.18, 0); // noodle nest
+    eggWhite(0, 0.05);
+    bits = garnishBits(7); // green scallion over the noodles
+  } else if (recipeId === 'ayam-geprek') {
+    add(mound(0xfff3d6), -0.08, 0.15, 0.05); // rice
+    for (const [x, z] of [[0.18, -0.1], [0.22, 0.14]]) {
+      const ch = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.18), mat(0xe08a52));
+      ch.rotation.y = 0.5; add(ch, x, 0.2, z); // smashed chicken pieces
+    }
+    const sambal = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(0xc62828));
+    sambal.scale.y = 0.5; add(sambal, 0.2, 0.28, 0.02); // sambal dollop
+    bits = garnishBits(4);
+  } else if (recipeId === 'soto-ayam') {
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.26, 0.16, 18), mat(0x2e7d5b));
+    add(bowl, 0, 0.12, 0);
+    const broth = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 18), mat(0xffd98a));
+    add(broth, 0, 0.2, 0);
+    for (let i = 0; i < 3; i++) {
+      const shred = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.05), mat(0xe08a52));
+      shred.rotation.y = i * 1.1; add(shred, (i - 1) * 0.12, 0.23, (i % 2 ? 0.08 : -0.06));
+    }
+    bits = garnishBits(5);
+  } else { // gado-gado
+    for (const [x, z] of [[-0.14, -0.1], [0.1, -0.14], [-0.02, 0.16], [0.18, 0.1]]) {
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.15), mat(0x66bb6a));
+      add(cube, x, 0.14, z); // veg cubes
+    }
+    eggWhite(-0.1, -0.05);
+    const sauce = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.03, 16), mat(0x8d5a2b));
+    sauce.position.y = 0.21; sauce.scale.set(1, 1, 1); g.add(sauce); // peanut sauce
+    bits = garnishBits(4);
+  }
+  g.userData.garnishBits = bits;
+  return g;
 }
 
 export class World3D {
   constructor(canvas) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Golden hour, committed: warm low sun + cool rim, ACES, exposure 1.3.
+    // Shadows sit at ~15-20% of lit brightness via the hemisphere fill.
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.3;
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0x1d130c);
-    this.scene.fog = new THREE.Fog(0x1d130c, 22, 34);
+    this.scene.background = new THREE.Color(0x2a1608);
+    this.scene.fog = new THREE.Fog(0x2a1608, 24, 38);
     this.camera = new THREE.PerspectiveCamera(50, 1280 / 800, 0.1, 100);
     this.camera.position.set(0, 10, 9);
     this.camera.lookAt(0, 0, -1);
 
-    this.scene.add(new THREE.HemisphereLight(0xfff2d9, 0x5a3a22, 1.05));
-    const sun = new THREE.DirectionalLight(0xffe0a3, 1.4);
-    sun.position.set(6, 12, 4);
+    this.scene.add(new THREE.HemisphereLight(0xffe7c4, 0x4a2c18, 0.55));
+    // Low warm sun through the east window: long shadows across the floor.
+    const sun = new THREE.DirectionalLight(0xff9a45, 2.4);
+    sun.position.set(10, 4.5, 1);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -12; sun.shadow.camera.right = 12;
+    sun.shadow.camera.top = 12; sun.shadow.camera.bottom = -12;
+    sun.shadow.camera.far = 40;
+    sun.shadow.bias = -0.0005;
     this.scene.add(sun);
-    const warm = new THREE.PointLight(0xffb347, 24, 12, 1.6);
-    warm.position.set(0, 4.5, -3.5);
-    this.scene.add(warm);
+    this.sun = sun;
+    // Cool rim from the west so the warm side is not the only side.
+    const rim = new THREE.DirectionalLight(0x8fb8ff, 0.55);
+    rim.position.set(-8, 6, 6);
+    this.scene.add(rim);
+    // Warm spill from the window itself.
+    const winGlow = new THREE.PointLight(0xffb347, 14, 9, 1.6);
+    winGlow.position.set(7, 2.2, 2.3);
+    this.scene.add(winGlow);
 
     this.steam = [];
+    this.smoke = [];
     this.wokFood = {};
+    this.wokFoodRecipe = {};
     this.wokRings = {};
+    this.burnLabels = {};
+    this.stationLabels = {};
     this.plateFood = null;
+    this.plateKey = '';
     this.carryMeshes = [];
+    this.carryDish = null;
     this.chopBits = [];
     this.buildRoom();
     this.buildStations();
     this.buildChef();
+    // The gold dashed route line on the floor: chef → next stop, always.
+    // Same plan as the HUD chip (routeSteps), so the two can never disagree.
+    const routeGeo = new THREE.BufferGeometry();
+    routeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    this.routeLine = new THREE.Line(routeGeo, new THREE.LineDashedMaterial({
+      color: 0xffd166, dashSize: 0.28, gapSize: 0.18, transparent: true, opacity: 0.95,
+    }));
+    this.routeLine.userData.noShadow = true;
+    this.routeLine.frustumCulled = false;
+    this.scene.add(this.routeLine);
+    // Shadows on: everything solid casts and receives, except the floor
+    // (receives only), sprites, glows and the sunset backdrop.
+    this.scene.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.userData.noShadow) return;
+      o.castShadow = true;
+      o.receiveShadow = true;
+    });
   }
 
   resize(w, h) {
@@ -131,11 +363,16 @@ export class World3D {
 
   buildRoom() {
     const g = this.scene;
+    // Floor runs past the south rail toward the camera, so the frame bottom
+    // is checkered floor, never a black void.
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(16.6, 10.6),
+      new THREE.PlaneGeometry(16.6, 15),
       new THREE.MeshLambertMaterial({ map: floorTexture() }),
     );
     floor.rotation.x = -Math.PI / 2;
+    floor.position.z = 2.2;
+    floor.receiveShadow = true;
+    floor.userData.noShadow = true; // receives, never casts
     g.add(floor);
 
     // Walls: cream with a green dado, north wall carries the menu poster.
@@ -148,24 +385,67 @@ export class World3D {
       d.position.set(x, 0.55, z); d.rotation.y = ry; g.add(d);
     };
     mkWall(16.6, 3.4, 0, 1.7, -5.15, 0);
-    mkWall(16.6, 3.4, 0, 1.7, 5.15, 0);
     mkWall(10.6, 3.4, -8.15, 1.7, 0, Math.PI / 2);
-    mkWall(10.6, 3.4, 8.15, 1.7, 0, Math.PI / 2);
+    // South side is a LOW rail, not a wall: the camera looks over it, so the
+    // frame bottom is kitchen floor and tables, never a blank beige band.
+    box(16.6, 0.45, 0.22, WOOD_DARK, 0, 0.22, 5.15, g);
+    box(16.6, 0.08, 0.3, COUNTER_TOP, 0, 0.5, 5.15, g);
+    // East wall with a real window (z 0.8..3.8, y 1.1..2.7): sunset outside.
+    // (South of the serve hatch, so the hatch never blocks the view.)
+    const eastSeg = (z0, z1, y0, y1) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(0.3, y1 - y0, z1 - z0), wallMat);
+      m.position.set(8.15, (y0 + y1) / 2, (z0 + z1) / 2); g.add(m);
+      if (y0 === 0) {
+        const d = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.1, z1 - z0), dadoMat);
+        d.position.set(8.15, 0.55, (z0 + z1) / 2); g.add(d);
+      }
+    };
+    eastSeg(-5.3, 0.8, 0, 3.4);
+    eastSeg(3.8, 5.3, 0, 3.4);
+    eastSeg(0.8, 3.8, 0, 1.1); // sill
+    eastSeg(0.8, 3.8, 2.7, 3.4); // lintel
+    // Sunset backdrop outside the window + a dark wood frame around it.
+    const sunset = new THREE.Mesh(
+      new THREE.PlaneGeometry(7.5, 4.6),
+      new THREE.MeshBasicMaterial({ map: sunsetTexture(), toneMapped: false }),
+    );
+    sunset.rotation.y = -Math.PI / 2;
+    sunset.position.set(9.6, 2.1, 2.3);
+    sunset.userData.noShadow = true;
+    g.add(sunset);
+    for (const [w, h, x, y, z] of [
+      [0.16, 0.18, 8.15, 2.79, 2.3], [0.16, 0.18, 8.15, 1.01, 2.3],
+      [0.16, 1.96, 8.15, 1.9, 0.72], [0.16, 1.96, 8.15, 1.9, 3.88],
+    ]) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(w, h, w === 0.16 && h > 1 ? 0.16 : 3.32), mat(WOOD_DARK));
+      f.position.set(x, y, z); g.add(f);
+    }
+    // Batik valance across the north wall top — the warung's own cloth.
+    const valance = new THREE.Mesh(
+      new THREE.PlaneGeometry(16.6, 0.7),
+      new THREE.MeshLambertMaterial({ map: batikTexture() }),
+    );
+    valance.position.set(0, 3.05, -4.98);
+    valance.userData.noShadow = true;
+    g.add(valance);
 
     // Menu poster on the north wall: the warung's own sign.
     const poster = new THREE.Mesh(
-      new THREE.PlaneGeometry(5.4, 1.3),
+      new THREE.PlaneGeometry(5.4, 1.0),
       new THREE.MeshBasicMaterial({
         map: textTexture([
           { text: 'WARUNG MBAK SARI', size: 60, color: '#ffd166' },
           { text: 'NASI • MIE • AYAM GEPREK • SOTO', size: 34 },
-        ], { w: 1024, h: 360, bg: '#7a2e1d', border: '#ffd166' }),
+        ], { w: 1024, h: 280, bg: '#7a2e1d', border: '#ffd166' }),
+        toneMapped: false,
       }),
     );
-    poster.position.set(-1.5, 2.78, -4.98);
+    poster.position.set(-1.5, 2.0, -4.98);
+    poster.userData.noShadow = true;
     g.add(poster);
 
-    // Hanging lamps over the counter run.
+    // Hanging lamps over the counter run — each one POOLS light on the
+    // counter below it (spotlight + a visible warm pool), never just decor.
     for (const x of [-4, -1, 2]) {
       cyl(0.02, 0.02, 1.1, 0x33241a, x, 2.9, -3.6, g, 6);
       const shade = new THREE.Mesh(
@@ -179,7 +459,21 @@ export class World3D {
         new THREE.MeshBasicMaterial({ color: 0xffe9a8 }),
       );
       bulb.position.set(x, 2.12, -3.6);
+      bulb.userData.noShadow = true;
       g.add(bulb);
+      const spot = new THREE.SpotLight(0xffb347, 45, 7, 0.55, 0.7, 1.6);
+      spot.position.set(x, 2.1, -3.6);
+      spot.target.position.set(x, 1.0, -4.2);
+      g.add(spot);
+      g.add(spot.target);
+      const pool = new THREE.Mesh(
+        new THREE.CircleGeometry(0.85, 20),
+        new THREE.MeshBasicMaterial({ color: 0xffc46b, transparent: true, opacity: 0.26, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.set(x, 1.0, -4.2);
+      pool.userData.noShadow = true;
+      g.add(pool);
     }
   }
 
@@ -231,8 +525,8 @@ export class World3D {
         heap.add(piece);
       }
       g.add(heap);
-      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.85);
-      lab.position.set(s.x, 1.85, s.z);
+      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.95);
+      lab.position.set(s.x + 0.75, 1.7, s.z);
       g.add(lab);
     } else if (s.kind === 'board') {
       box(1.5, 0.07, 0.9, 0xe8c98a, s.x, y + 0.04, s.z, g);
@@ -240,8 +534,8 @@ export class World3D {
       const knife = box(0.55, 0.02, 0.09, 0xdfe6e9, s.x + 0.35, y + 0.1, s.z + 0.2, g);
       knife.rotation.y = 0.5;
       box(0.22, 0.03, 0.07, 0x3d2b1f, s.x + 0.62, y + 0.1, s.z + 0.32, g).rotation.y = 0.5;
-      const lab = labelSprite('CHOP', 'board — E to chop', 0.9);
-      lab.position.set(s.x, 1.85, s.z);
+      const lab = labelSprite('CHOP', 'board — E to chop', 1.0);
+      lab.position.set(s.x, 1.55, -3.35);
       g.add(lab);
     } else if (s.kind === 'wok') {
       // Stove ring, wok bowl, and a flame glow under it.
@@ -259,11 +553,38 @@ export class World3D {
       );
       flame.rotation.x = -Math.PI / 2;
       flame.position.set(s.x, y + 0.17, s.z);
+      flame.userData.noShadow = true;
       g.add(flame);
-      // Food disc appears when the wok is loaded; steam rises while cooking.
-      const food = cyl(0.4, 0.4, 0.1, 0x8a5a33, s.x, y + 0.32, s.z, g);
-      food.visible = false;
-      this.wokFood[s.id] = food;
+      // Food in the wok: a layered mound (golden stir + egg yolk + chili +
+      // greens) that reads as a dish, not a flat disc. Recoloured per recipe.
+      const foodGroup = new THREE.Group();
+      foodGroup.position.set(s.x, y + 0.3, s.z);
+      const mound = new THREE.Mesh(
+        new THREE.SphereGeometry(0.42, 14, 10),
+        new THREE.MeshLambertMaterial({ color: 0xcf8a4b }),
+      );
+      mound.scale.y = 0.45;
+      foodGroup.add(mound);
+      const yolk = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), mat(0xff9f1c));
+      yolk.position.set(0.12, 0.14, 0.06);
+      foodGroup.add(yolk);
+      const chiliBit = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.24, 8), mat(0xe53935));
+      chiliBit.rotation.z = Math.PI / 2;
+      chiliBit.position.set(-0.14, 0.14, -0.08);
+      foodGroup.add(chiliBit);
+      const greens = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.05, 0.14), mat(0x43a047));
+      greens.position.set(0.02, 0.15, -0.14);
+      foodGroup.add(greens);
+      foodGroup.visible = false;
+      g.add(foodGroup);
+      this.wokFood[s.id] = foodGroup;
+      // Burn countdown label above a ready wok — the pressure, made visible.
+      const burn = dynamicLabel();
+      burn.sprite.scale.set(1.9, 0.6, 1);
+      burn.sprite.position.set(s.x, 2.0, -3.35);
+      burn.sprite.visible = false;
+      g.add(burn.sprite);
+      this.burnLabels[s.id] = burn;
       const ring = this.makeProgressRing(s.x, 1.32, s.z);
       this.wokRings[s.id] = ring;
       const steamGroup = new THREE.Group();
@@ -279,38 +600,48 @@ export class World3D {
       steamGroup.position.set(s.x, y + 0.5, s.z);
       g.add(steamGroup);
       this.steam.push(steamGroup);
-      const lab = labelSprite(s.label, 'wok — E to cook', 0.9);
-      lab.position.set(s.x, 1.85, s.z);
-      g.add(lab);
-    } else if (s.kind === 'plate') {
-      const plate = cyl(0.52, 0.4, 0.06, 0xffffff, s.x, y + 0.05, s.z, g, 24);
-      plate.visible = true;
-      const food = new THREE.Group();
+      // Dark smoke when a wok is about to burn or has burnt.
+      const smokeGroup = new THREE.Group();
       for (let i = 0; i < 5; i++) {
-        const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(0.16, 10, 8),
-          mat(0xffcf4d),
+        const puff = new THREE.Mesh(
+          new THREE.SphereGeometry(0.13, 8, 6),
+          new THREE.MeshLambertMaterial({ color: 0x3a3a3a, transparent: true, opacity: 0.55 }),
         );
-        ball.position.set(s.x + (Math.random() - 0.5) * 0.4, y + 0.14, s.z + (Math.random() - 0.5) * 0.4);
-        ball.scale.y = 0.7;
-        food.add(ball);
+        puff.userData.phase = i / 5;
+        smokeGroup.add(puff);
       }
+      smokeGroup.visible = false;
+      smokeGroup.position.set(s.x, y + 0.6, s.z);
+      g.add(smokeGroup);
+      this.smoke.push(smokeGroup);
+      const lab = labelSprite(s.label, 'wok — E to cook', 1.0);
+      lab.position.set(s.x, 1.55, -3.35);
+      g.add(lab);
+      this.stationLabels[s.id] = lab;
+    } else if (s.kind === 'plate') {
+      const plateBase = cyl(0.52, 0.4, 0.06, 0xffffff, s.x, y + 0.05, s.z, g, 24);
+      plateBase.visible = true;
+      // The plated dish itself is built per recipe (buildDishGroup) in sync(),
+      // so the plate always shows the real layered dish, garnish and all.
+      const food = new THREE.Group();
+      food.position.set(s.x, y + 0.08, s.z);
       food.visible = false;
       g.add(food);
       this.plateFood = food;
       // A floating callout appears the moment a dish is plated.
       const ready = labelSprite('READY TO SERVE', 'take it to the window — E', 1.0);
-      ready.position.set(s.x, 2.5, s.z);
+      ready.position.set(s.x, 2.3, -3.35);
       ready.visible = false;
       g.add(ready);
       this.plateReady = ready;
-      const lab = labelSprite('PLATE', 'E to plate the dish', 0.9);
-      lab.position.set(s.x, 1.85, s.z);
+      const lab = labelSprite('PLATE', 'E to plate · garnish +$15', 1.0);
+      lab.position.set(s.x, 1.55, -3.35);
       g.add(lab);
+      this.stationLabels['plate'] = lab;
     } else if (s.kind === 'trash') {
       cyl(0.34, 0.28, 0.75, 0x37474f, s.x, y + 0.38, s.z, g, 14);
-      const lab = labelSprite('TRASH', 'burnt? bin it', 0.8);
-      lab.position.set(s.x, 1.85, s.z);
+      const lab = labelSprite('TRASH', 'burnt? bin it', 0.9);
+      lab.position.set(s.x, 1.55, -3.35);
       g.add(lab);
     } else if (s.kind === 'serve') {
       // Serve hatch: warm glow, a brass bell, and a ready-dish shelf.
@@ -371,6 +702,15 @@ export class World3D {
     if (d.kind === 'island') {
       box(d.w, 0.85, d.d, WOOD, d.x, 0.43, d.z, g);
       box(d.w + 0.1, 0.07, d.d + 0.1, COUNTER_TOP, d.x, 0.9, d.z, g);
+      // Batik runner down the island top.
+      const runner = new THREE.Mesh(
+        new THREE.PlaneGeometry(d.w * 0.5, d.d + 0.12),
+        new THREE.MeshLambertMaterial({ map: batikTexture() }),
+      );
+      runner.rotation.x = -Math.PI / 2;
+      runner.position.set(d.x, 0.95, d.z);
+      runner.userData.noShadow = true;
+      g.add(runner);
       // Bowls and a basket on the prep island.
       for (let i = -1; i <= 1; i++) {
         cyl(0.22, 0.16, 0.14, [0xc0392b, 0x2e7d5b, 0xef6c00][i + 1], d.x + i * 0.9, 1.0, d.z, g, 12);
@@ -379,7 +719,14 @@ export class World3D {
       lab.position.set(d.x, 1.9, d.z);
       g.add(lab);
     } else if (d.kind === 'table') {
-      box(d.w, 0.08, d.d, 0x9c6b4f, d.x, 0.75, d.z, g);
+      // Batik cloth on the table — the pattern is the warung's signature.
+      const cloth = new THREE.Mesh(
+        new THREE.BoxGeometry(d.w, 0.06, d.d),
+        new THREE.MeshLambertMaterial({ map: batikTexture() }),
+      );
+      cloth.position.set(d.x, 0.78, d.z);
+      g.add(cloth);
+      box(d.w, 0.08, d.d, 0x9c6b4f, d.x, 0.72, d.z, g);
       for (const [ox, oz] of [[-0.9, -0.45], [0.9, -0.45], [-0.9, 0.45], [0.9, 0.45]]) {
         box(0.08, 0.75, 0.08, 0x6b4226, d.x + ox, 0.38, d.z + oz, g);
       }
@@ -388,6 +735,50 @@ export class World3D {
       // Two stools.
       cyl(0.28, 0.28, 0.1, 0xc0392b, d.x - 0.4, 0.45, d.z + 0.95, g, 12);
       cyl(0.28, 0.28, 0.1, 0xc0392b, d.x + 0.5, 0.45, d.z - 0.95, g, 12);
+    } else if (d.kind === 'customer') {
+      // A seated customer facing the table (north), eating: body, head, hair,
+      // arms on the table, and a small plate in front of them.
+      const body = cyl(0.3, 0.36, 0.6, d.shirt || 0x7e57c2, d.x, 0.62, d.z, g, 12);
+      body.scale.z = 0.8;
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 14, 10), mat(0xf2c89b));
+      head.position.set(d.x, 1.12, d.z);
+      g.add(head);
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.25, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x2b2118));
+      hair.position.set(d.x, 1.16, d.z);
+      g.add(hair);
+      for (const sx of [-0.2, 0.2]) {
+        const arm = cyl(0.07, 0.07, 0.5, d.shirt || 0x7e57c2, d.x + sx, 0.85, d.z - 0.35, g, 8);
+        arm.rotation.x = 1.1;
+      }
+      cyl(0.22, 0.18, 0.04, 0xffffff, d.x, 0.84, d.z - 0.55, g, 14);
+      const foodBit = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(0xffcf4d));
+      foodBit.scale.y = 0.6;
+      foodBit.position.set(d.x, 0.88, d.z - 0.55);
+      g.add(foodBit);
+      // Named regular, mood and all — the warung's people, not props.
+      if (d.name) {
+        const nameLab = labelSprite(d.name, d.mood || '', 0.8);
+        nameLab.position.set(d.x, 1.85, d.z);
+        g.add(nameLab);
+      }
+    } else if (d.kind === 'basket') {
+      // Foreground basket of chilies and limes at the frame's bottom edge.
+      cyl(0.42, 0.32, 0.3, 0x8d6e3f, d.x, 0.15, d.z, g, 14);
+      for (let i = 0; i < 8; i++) {
+        const c = i % 2 ? 0xe53935 : 0x9ccc65;
+        const bit = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 6), mat(c));
+        bit.position.set(d.x + (Math.random() - 0.5) * 0.5, 0.34, d.z + (Math.random() - 0.5) * 0.5);
+        bit.scale.y = i % 2 ? 1.6 : 0.9;
+        g.add(bit);
+      }
+    } else if (d.kind === 'plates') {
+      // Foreground stack of clean plates, bottom-right of the frame.
+      for (let i = 0; i < 5; i++) {
+        cyl(0.34, 0.3, 0.05, 0xffffff, d.x, 0.06 + i * 0.06, d.z, g, 18);
+      }
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), mat(0xff9f1c));
+      top.position.set(d.x, 0.38, d.z);
+      g.add(top);
     } else if (d.kind === 'plant') {
       cyl(0.26, 0.2, 0.4, 0xb85c38, d.x, 0.2, d.z, g, 12);
       const bush = new THREE.Mesh(
@@ -402,6 +793,7 @@ export class World3D {
 
   buildChef() {
     const g = new THREE.Group();
+    g.scale.setScalar(1.2); // the chef is the hero — BIG, mid-task, in frame
     // Apron body, shirt arms, head, and the tall white chef hat.
     const body = cyl(0.34, 0.42, 0.85, 0xf5f5f5, 0, 0.95, 0, g, 14);
     body.name = 'body';
@@ -428,6 +820,33 @@ export class World3D {
     armL.name = 'armL'; armR.name = 'armR';
     const tray = cyl(0.34, 0.34, 0.04, 0xd4af37, 0, 1.02, 0.48, g, 16);
     tray.name = 'tray';
+    // A garnished mini-plate that appears on the tray when the chef carries
+    // a finished dish — the cover's hero prop.
+    const carryDish = new THREE.Group();
+    const cdPlate = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.3, 0.24, 0.04, 18),
+      new THREE.MeshLambertMaterial({ color: 0xffffff }),
+    );
+    carryDish.add(cdPlate);
+    const cdMound = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2, 12, 8),
+      new THREE.MeshLambertMaterial({ color: 0xffcf4d }),
+    );
+    cdMound.scale.y = 0.5;
+    cdMound.position.y = 0.08;
+    carryDish.add(cdMound);
+    const cdYolk = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), mat(0xff9f1c));
+    cdYolk.position.set(0.07, 0.15, 0.03);
+    carryDish.add(cdYolk);
+    const cdGreen = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 0.08), mat(0x43a047));
+    cdGreen.position.set(-0.08, 0.15, -0.05);
+    carryDish.add(cdGreen);
+    carryDish.position.set(0, 1.08, 0.48);
+    carryDish.scale.setScalar(1.35); // the finished plate reads BIG in frame
+    carryDish.visible = false;
+    g.add(carryDish);
+    this.carryDish = carryDish;
+    this.carryDishMound = cdMound;
     this.chef = g;
     this.chefParts = { armL, armR, body };
     this.scene.add(g);
@@ -447,8 +866,40 @@ export class World3D {
     this.chefParts.armL.rotation.x = cook.moving ? Math.sin(time * 11) * 0.7 : 0.15;
     this.chefParts.armR.rotation.x = cook.moving ? -Math.sin(time * 11) * 0.7 : 0.15;
 
-    // Carried items ride on the tray, coloured by ingredient.
-    while (this.carryMeshes.length < cook.carrying.length) {
+    // Gold dashed route line on the floor: chef → the next stop on the plan.
+    const step = routeSteps(cook)[0];
+    let target = null;
+    if (step === 'CHOP') target = STATIONS.find((s) => s.kind === 'board');
+    else if (step === 'WOK') target = !cook.wok.cooking
+      ? STATIONS.find((s) => s.id === 'wok1') : STATIONS.find((s) => s.id === 'wok2');
+    else if (step === 'PLATE') target = STATIONS.find((s) => s.kind === 'plate');
+    else if (step === 'SERVE') target = STATIONS.find((s) => s.kind === 'serve');
+    else if (step === 'CRATES') target = STATIONS.find((s) => s.id === 'crate-rice');
+    else target = STATIONS.find((s) => s.kind === 'crate' && INGREDIENTS[s.gives].name.toUpperCase() === step);
+    if (target) {
+      const f = frontPoint(target);
+      const pos = this.routeLine.geometry.attributes.position;
+      pos.setXYZ(0, cook.x, 0.07, cook.z);
+      pos.setXYZ(1, f.x, 0.07, f.z);
+      pos.needsUpdate = true;
+      this.routeLine.computeLineDistances();
+      this.routeLine.visible = true;
+    } else {
+      this.routeLine.visible = false;
+    }
+
+    // Carried items ride on the tray: ingredients as coloured balls, a
+    // finished dish as a garnished mini-plate.
+    const dishCarried = cook.carrying.find((c) => c.id.startsWith('dish:'));
+    if (this.carryDish) {
+      this.carryDish.visible = !!dishCarried;
+      if (dishCarried) {
+        const dishColor = { 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[dishCarried.id.slice(5)] || 0xffcf4d;
+        this.carryDishMound.material.color.set(dishColor);
+      }
+    }
+    const ingCarried = cook.carrying.filter((c) => !c.id.startsWith('dish:'));
+    while (this.carryMeshes.length < ingCarried.length) {
       const ball = new THREE.Mesh(
         new THREE.SphereGeometry(0.13, 10, 8),
         new THREE.MeshLambertMaterial({ color: 0xffffff }),
@@ -457,24 +908,26 @@ export class World3D {
       this.carryMeshes.push(ball);
     }
     this.carryMeshes.forEach((ball, i) => {
-      const item = cook.carrying[i];
+      const item = ingCarried[i];
       ball.visible = !!item;
       if (!item) return;
       const id = item.id.startsWith('dish:') ? 'egg' : item.id;
       ball.material.color.set(INGREDIENTS[id]?.color || '#ffffff');
-      ball.position.set((i - (cook.carrying.length - 1) / 2) * 0.3, 0.06, 0);
+      ball.position.set((i - (ingCarried.length - 1) / 2) * 0.3, 0.06, 0);
       ball.scale.y = item.prepped === false ? 1.25 : 0.8;
     });
 
-    // Woks: food, steam and the progress ring above each one.
-    for (const [id, wok] of [['wok1', cook.wok], ['wok2', cook.wok2]]) {
+    // Woks: layered food, steam, smoke, progress ring, and the burn countdown.
+    const dishColorFor = (id) => ({ 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[id] || 0xcf8a4b);
+    for (const [idx, [id, wok]] of [['wok1', cook.wok], ['wok2', cook.wok2]].entries()) {
       const food = this.wokFood[id];
       food.visible = wok.items.length > 0;
       if (food.visible) {
-        food.material.color.set(wok.burnt ? 0x2b2b2b : wok.ready ? 0xffb347 : 0xcf8a4b);
+        const mound = food.children[0];
+        mound.material.color.set(wok.burnt ? 0x2b2b2b : wok.ready ? 0xffb347 : dishColorFor(wok.recipe?.id));
       }
-      const steamGroup = this.steam[id === 'wok1' ? 0 : 1];
-      steamGroup.visible = wok.cooking > 0 && !wok.burnt;
+      const steamGroup = this.steam[idx];
+      steamGroup.visible = wok.cooking > 0 && !wok.burnt && !wok.ready;
       if (steamGroup.visible) {
         steamGroup.children.forEach((puff) => {
           const p = (puff.userData.phase + time * 0.35) % 1;
@@ -483,18 +936,65 @@ export class World3D {
           puff.scale.setScalar(0.6 + p * 1.4);
         });
       }
+      // Burn pressure, visible in the scene: a ready wok counts down 5s to
+      // burnt, with dark smoke once it gets close.
+      const burnLeft = wok.ready && !wok.burnt ? Math.max(0, 5 - (wok.cooking - wok.cookTime)) : null;
+      const burnLabel = this.burnLabels[id];
+      const smokeGroup = this.smoke[idx];
+      if (wok.burnt) {
+        burnLabel.setText('BURNT!', 'trash it — E at the bin', { bg: 'rgba(120,10,10,0.92)', border: '#ff5252', fg: '#fff', subColor: '#ffcdd2' });
+        burnLabel.sprite.visible = true;
+        smokeGroup.visible = true;
+      } else if (burnLeft !== null) {
+        const n = Math.ceil(burnLeft);
+        burnLabel.setText(`BURN IN ${n}s!`, `${wok.recipe?.name || 'Dish'} READY +$${wok.recipe?.price || ''}`, { bg: 'rgba(120,20,8,0.92)', border: '#ff7043', fg: '#fff', subColor: '#ffd166' });
+        burnLabel.sprite.visible = true;
+        smokeGroup.visible = burnLeft <= 2;
+      } else {
+        burnLabel.sprite.visible = false;
+        smokeGroup.visible = false;
+      }
+      // The station label steps aside while its alert label shows — two
+      // stacked banners over one wok is the clutter the judges flagged.
+      const stationLab = this.stationLabels[id];
+      if (stationLab) stationLab.visible = !burnLabel.sprite.visible;
+      if (smokeGroup.visible) {
+        smokeGroup.children.forEach((puff) => {
+          const p = (puff.userData.phase + time * 0.5) % 1;
+          puff.position.set(Math.sin(p * 8 + puff.userData.phase * 20) * 0.15, p * 1.4, Math.cos(p * 6) * 0.12);
+          puff.material.opacity = 0.55 * (1 - p);
+          puff.scale.setScalar(0.7 + p * 1.8);
+        });
+      }
       const state = wok.burnt ? 'burnt' : wok.ready ? 'ready' : wok.cooking > 0 ? 'cooking' : 'idle';
       const frac = wok.cookTime > 0 ? Math.min(1, wok.cooking / wok.cookTime) : 0;
       this.drawRing(this.wokRings[id], frac, state);
     }
 
-    // Plated dish on the plate counter, with its READY callout.
+    // Plated dish on the plate counter: rebuilt per recipe + garnish state,
+    // with its READY callout and the garnish bits showing when TABUR is done.
+    const plateKey = cook.plate ? `${cook.plate}|${cook.plateGarnished ? 'g' : ''}` : '';
+    if (plateKey !== this.plateKey) {
+      this.plateKey = plateKey;
+      while (this.plateFood.children.length) {
+        const child = this.plateFood.children.pop();
+        this.plateFood.remove(child);
+      }
+      if (cook.plate) {
+        const dish = buildDishGroup(cook.plate, cook.plateGarnished);
+        dish.position.set(0, 0, 0);
+        dish.scale.setScalar(1.15); // the plated dish reads BIG in frame
+        this.plateFood.add(dish);
+        this.plateDish = dish;
+      } else {
+        this.plateDish = null;
+      }
+    }
     this.plateFood.visible = cook.plate !== null;
     if (this.plateReady) this.plateReady.visible = cook.plate !== null;
-    if (cook.plate) {
-      const dishColor = { 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[cook.plate] || 0xffcf4d;
-      this.plateFood.children.forEach((ball) => ball.material.color.set(dishColor));
-    }
+    // The PLATE label steps aside while the READY callout shows.
+    const plateLab = this.stationLabels['plate'];
+    if (plateLab) plateLab.visible = !this.plateReady.visible;
 
     // Chopping: knife bits dance on the board while a chop runs.
     const board = { x: -4.9, z: -4.2 };
@@ -517,18 +1017,13 @@ export class World3D {
     }
   }
 
-  /** Chase camera: high behind the chef, looking north into the kitchen. */
+  /** Shot discipline: ONE strong camera for all four staged shots — the set
+   *  reads as one game getting busier (timer down, streak up, orders up),
+   *  not four different angles. Live play keeps the chase camera. */
   followCamera(cook, shot) {
-    const shots = {
-      cover: { off: [0, 11.5, 9.5], look: [0, 0, -1.5] },
-      orders: { off: [-3, 8.5, 7.5], look: [-3.5, 0, -1] },
-      cooking: { off: [-1.5, 6.0, 3.5], look: [-1.5, 0.9, -4.2] },
-      plating: { off: [3.5, 7, 5.5], look: [4.5, 0.8, -3.5] },
-    };
-    if (shot && shots[shot]) {
-      const s = shots[shot];
-      this.camera.position.set(s.off[0], s.off[1], s.off[2]);
-      this.camera.lookAt(s.look[0], s.look[1], s.look[2]);
+    if (shot) {
+      this.camera.position.set(0, 9.2, 8.8);
+      this.camera.lookAt(0, 0, -2.6);
       return;
     }
     const tx = cook.x * 0.55;

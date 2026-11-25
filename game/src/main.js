@@ -51,6 +51,8 @@ function resetShift() {
   game.hearts = 3;
   game.toastText = '';
   cook.plateHot = false;
+  cook.plateGarnished = false;
+  cook.plateTip = 0;
   game.phase = 'playing';
 }
 
@@ -63,9 +65,10 @@ function interact() {
   const before = board.coins;
   const servedName = cook.plate ? recipeName(cook.plate) : null;
   const wasHot = cook.plateHot === true;
+  const wasGarnished = cook.plateGarnished === true;
   cook.interact(board, sfx);
   if (board.coins > before && servedName) {
-    hud.showToast(`Served ${servedName} +$${board.coins - before}${wasHot ? ' · HOT +$10 tip!' : ''}`);
+    hud.showToast(`Served ${servedName} +$${board.coins - before}${wasHot ? ' · HOT +$10 tip!' : ''}${wasGarnished ? ' · GARNISH +$15!' : ''}`);
   }
 }
 
@@ -136,7 +139,10 @@ function frame() {
   }
 
   if (game.phase === 'playing') {
-    cook.tick(dt);
+    // Staged screenshots are frozen tableaus: the cook/wok state must not
+    // drift while the headless capture runs, or the burn countdown would
+    // expire and the wok would burn before the screenshot lands.
+    if (!game.shot) cook.tick(dt);
     // Toast the moment a wok turns ready (live play only; staged shots
     // carry their own preset toast so the screenshot shows one too).
     if (!game.shot) {
@@ -175,7 +181,9 @@ function frame() {
         crate: `E — Grab ${near.label}`,
         board: 'E — Chop (needs a raw ingredient)',
         wok: 'E — Cook / take dish',
-        plate: 'E — Plate the dish',
+        plate: cook.plate && !cook.carrying.some((c) => c.id.startsWith('dish:'))
+          ? 'E — Garnish the plated dish (+$15 tip!)'
+          : 'E — Plate the dish',
         serve: 'E — Serve the plated dish!',
         trash: 'E — Trash burnt food',
       };
