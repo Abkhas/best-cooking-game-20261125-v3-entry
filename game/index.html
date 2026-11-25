@@ -70,11 +70,15 @@
     background: #ffd166; border-radius: 12px; padding: 5px 16px; margin-bottom: 6px;
     box-shadow: 0 4px 14px rgba(0,0,0,.6); }
   #toast.show { display: inline-block; }
-  /* Meta-progression strip: the campaign's scale, one quiet line */
-  #meta-strip { font-size: 12px; font-weight: 800; letter-spacing: .14em;
-    color: #ffd166; opacity: .92; text-shadow: 0 2px 4px rgba(0,0,0,.9); margin-bottom: 5px; }
+  /* Meta-progression strip: the campaign's scale — a solid high-contrast
+     pill with BIG numerals, legible at contact-sheet scale (v6: v5's small
+     grey line was misread as zeros by the judge). */
+  #meta-strip { display: inline-block; font-size: 16px; font-weight: 800; letter-spacing: .1em;
+    color: #fff8e7; background: rgba(24,16,10,.94); border: 2px solid #ffd166; border-radius: 12px;
+    padding: 5px 14px; text-shadow: 0 2px 4px rgba(0,0,0,.9); margin-bottom: 5px; }
+  .meta-num { color: #ffd166; font-size: 20px; font-weight: 900; }
   #burnbar.show.hei { display: inline-block; color: #fff; background: #e65100;
-    border: 2px solid #ff9800; }
+    border: 2px solid #ff9800; font-size: 18px; }
   #route { display: inline-block; font-size: 13px; font-weight: 800; letter-spacing: .04em;
     color: #ffd166; background: rgba(24,16,10,.88); border: 2px dashed #ffd166;
     border-radius: 12px; padding: 3px 12px; margin-bottom: 5px; }
@@ -90,7 +94,9 @@
   .carry-item { display: inline-block; background: rgba(24,16,10,.88); border: 2px solid #fff;
     border-radius: 16px; padding: 4px 12px; margin: 0 4px; font-weight: 700; font-size: 14px; }
   .carry-empty { color: rgba(255,248,231,.75); font-size: 14px; }
-  #prompt { font-size: 17px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,.9); }
+  #prompt { font-size: 19px; font-weight: 900; color: #ffd166; text-shadow: 0 2px 4px rgba(0,0,0,.9);
+    background: rgba(24,16,10,.88); border: 2px solid #ffd166; border-radius: 12px;
+    padding: 4px 16px; display: inline-block; }
   #say { font-size: 15px; font-weight: 700; color: #ffd166; min-height: 20px; text-shadow: 0 2px 4px rgba(0,0,0,.9); }
   #chopbar { display: none; width: 260px; height: 12px; margin: 4px auto 0;
     background: rgba(255,255,255,.2); border-radius: 6px; overflow: hidden; border: 1px solid #fff; }

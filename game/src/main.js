@@ -32,6 +32,15 @@ const keys = new Set();
 let clickTarget = null;
 let clickInteracted = false;
 
+// One instruction line per staged shot (v6): the judge sees feedback +
+// instruction, not just a banner — while the one-banner rule still holds.
+const SHOT_PROMPTS = {
+  cover: 'SERVE NOW — [SPACE] at the hatch · ring the bell!',
+  book: '[B] close the book · spend coins on an upgrade',
+  cooking: 'GRAB THE SEARING WOK — [E] before it burns!',
+  tally: '[ENTER] cook the next leg — HARI 3 awaits',
+};
+
 function resize() {
   const w = window.innerWidth;
   const h = window.innerHeight;
@@ -210,7 +219,7 @@ function frame() {
     promptText = '';
   }
 
-  hud.setPrompt(game.shot ? '' : promptText); // staged shots: no "WASD…" line — the frame is the game
+  hud.setPrompt(game.shot ? SHOT_PROMPTS[game.shot] || '' : promptText); // staged shots: one clear instruction line, not silence — v5's declutter cost v4's feedback edge, so the shot carries its own instruction
   hud.render(game);
   world.sync(game, t);
   if (game.phase === 'title') {

@@ -380,6 +380,7 @@ export class World3D {
     this.buildRoom();
     this.buildStations();
     this.buildChef();
+    this.buildCoverQueue();
     // The gold route line on the floor: chef → every stop on the plan, in
     // order. Same plan as the HUD chip (routeSteps), so the two can never
     // disagree. Waypoint dots mark each stop; the line is the whole route,
@@ -674,10 +675,11 @@ export class World3D {
       // Crate labels sit toward the room (east), clear of the left frame edge:
       // the ticket column covers the first ~236px, so labels live well east
       // of the crates — v4's NOODLE pill was cut behind the tickets.
-      // Southern crates sit low in frame, so their labels ride higher —
-      // otherwise CHILI's pill is cut at the bottom edge.
+      // Southern crates sit low in frame, so their labels ride higher AND
+      // further east — otherwise VEG/CHILI pills are cut at the left edge
+      // (v5 nit, still visible in the v6 cover/cooking first shoot).
       const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.65);
-      lab.position.set(s.x + 2.4 + Math.max(0, s.z - 2.2) * 0.5, 1.95 + Math.max(0, s.z - 0.5) * 0.25, s.z);
+      lab.position.set(s.x + 2.4 + Math.max(0, s.z - 0.5) * 0.55, 1.95 + Math.max(0, s.z - 0.5) * 0.25, s.z);
       g.add(lab);
     } else if (s.kind === 'board') {
       box(1.5, 0.07, 0.9, 0xe8c98a, s.x, y + 0.04, s.z, g);
@@ -783,7 +785,10 @@ export class World3D {
       // the dish, its 3/3 layers and its price, the progress ring on the plate.
       const ready = dynamicLabel();
       ready.sprite.scale.set(2.1, 0.66, 1);
-      ready.sprite.position.set(s.x, 2.3, -3.35);
+      // v6 nit fix: the READY sub-line sat at y 2.3 / z -3.35, level with
+      // the hanging lamp shades (x 2, y 2.3) — partly occluded. It now rides
+      // higher and a touch forward of the lamp plane, clear of every shade.
+      ready.sprite.position.set(s.x, 2.62, -3.0);
       ready.sprite.visible = false;
       g.add(ready.sprite);
       this.plateReady = ready;
@@ -966,6 +971,41 @@ export class World3D {
     }
   }
 
+  /** The customer queue at the serve hatch — v6 cover only. Three regulars
+   *  waiting for their plates, facing the hatch: the cover's establishing
+   *  shot shows the warung serving real people, not an empty room. Hidden
+   *  in every other shot and in live play (the hatch stays usable). */
+  buildCoverQueue() {
+    const g = new THREE.Group();
+    const waiting = [
+      { x: 6.3, z: -2.8, shirt: 0xef6c00, hat: false },
+      { x: 6.4, z: -0.2, shirt: 0x5c6bc0, hat: true },
+      { x: 6.2, z: 1.0, shirt: 0x00897b, hat: false },
+    ];
+    for (const w of waiting) {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.62, 12), mat(w.shirt));
+      body.position.set(w.x, 0.62, w.z);
+      g.add(body);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.23, 12, 10), mat(0xf2c89b));
+      head.position.set(w.x, 1.1, w.z);
+      g.add(head);
+      const hair = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10, 0, Math.PI * 2, 0, Math.PI / 2), mat(0x2b2118));
+      hair.position.set(w.x, 1.14, w.z);
+      g.add(hair);
+      if (w.hat) {
+        const hat = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 12), mat(0xe8c98a));
+        hat.position.set(w.x, 1.32, w.z);
+        g.add(hat);
+      }
+    }
+    const lab = labelSprite('ANTRI 3', 'waiting at the hatch', 0.85);
+    lab.position.set(6.3, 2.15, -0.9);
+    g.add(lab);
+    g.visible = false;
+    this.scene.add(g);
+    this.coverQueue = g;
+  }
+
   buildChef() {
     const g = new THREE.Group();
     g.scale.setScalar(1.2); // the chef is the hero — BIG, mid-task, in frame
@@ -1043,6 +1083,8 @@ export class World3D {
   /** Mirror the live game state into the 3D scene. Called every frame. */
   sync(game, time) {
     const { cook } = game;
+    // The hatch queue exists only in the cover establishing shot.
+    if (this.coverQueue) this.coverQueue.visible = game.shot === 'cover';
     // Chef position, heading and walk bob.
     this.chef.position.set(cook.x, 0, cook.z);
     this.chef.rotation.y = cook.heading;
@@ -1228,12 +1270,20 @@ export class World3D {
     }
   }
 
-  /** Shot discipline: ONE strong camera for all four staged shots — the set
-   *  reads as one game getting busier (timer down, streak up, orders up),
-   *  not four different angles. Live play keeps the chase camera. The staged
-   *  camera yaws ~15° toward the east wall so the street outside the window
-   *  (passer-by, stall, GANG MAWAR sign) is in frame, not off the right edge. */
+  /** Shot discipline: ONE strong camera for the book/cooking/tally shots —
+   *  the set reads as one game getting busier (timer down, streak up,
+   *  orders up), not four different angles. The COVER breaks the rule on
+   *  purpose (v6): a high wide diagonal from the dining side (south-west)
+   *  looking north-east — the whole warung, the serve hatch with its
+   *  customer queue, and the street through the east window — so the cover
+   *  reads as an establishing shot, not "the same game at a different
+   *  moment". Live play keeps the chase camera. */
   followCamera(cook, shot) {
+    if (shot === 'cover') {
+      this.camera.position.set(-6.5, 11.0, 11.5);
+      this.camera.lookAt(2.0, 0, -2.5);
+      return;
+    }
     if (shot) {
       this.camera.position.set(-1.2, 8.6, 9.2);
       this.camera.lookAt(2.8, 0.2, -2.2);

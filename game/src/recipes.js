@@ -125,7 +125,7 @@ export function eventFor(elapsedSec) {
   if (elapsedSec < 60) return 'BUKA WARUNG · HARI 1/5';
   if (elapsedSec < 120) return '★ KENDURI — COURSE 2/3 · 3 PLATES TO GO';
   if (elapsedSec < 150) return '★ ARISAN NIGHT · COURSE 3/3';
-  return 'LAST CALL · HARI 1/5';
+  return 'LAST CALL · HARI 2/5';
 }
 
 /** The sub-rush inside the rush: a short timer that lives inside the leg,

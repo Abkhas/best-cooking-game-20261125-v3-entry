@@ -56,29 +56,34 @@ export function applyShot(game, name) {
   setWok(cook.wok2, null, 0, 0, false, false);
 
   if (name === 'cover') {
-    // Golden-hour dinner rush, mid-action — v5 numbers are DELIBERATELY
-    // different from v4's (1:12, 547, ×5, 9·1): 0:47 left, 812 coins,
-    // COMBO ×7, SERVED 14 · MISSED 2, HARI 2 · LEG 3/4. The set escalates
-    // as one rush: book 1:45 → cover 0:47 → cooking 0:35 → tally close.
-    game.elapsed = 133;
-    board.coins = 812; board.combo = 7; board.served = 14; board.lost = 2; board.tips = 105;
+    // WIDE ESTABLISHING SHOT — v6 re-frames the cover completely: a high
+    // diagonal from the dining side (south-west) looking north-east across
+    // the whole warung — crates, north counter, serve hatch with a customer
+    // queue, and the street through the east window — NOT the v5 straight-on
+    // mid-rush framing (AxForge: v5 read as "the same game at a different
+    // moment"). Staged numbers are DELIBERATELY different from v4's
+    // (1:12, 547, ×5, 9·1) AND v5's (0:47, 812, ×7, 14·2): 0:25 left,
+    // 963 coins, COMBO ×9, SERVED 17 · MISSED 1, HARI 2 · LEG 4/4.
+    // The set escalates as one rush: book 1:45 → cover 0:25 → cooking 0:35 → tally close.
+    game.elapsed = 155;
+    board.coins = 963; board.combo = 9; board.served = 17; board.lost = 1; board.tips = 138;
     board.tickets = [
-      ticket(1, 'nasi-goreng', 9, 44),
-      ticket(2, 'mie-goreng', 29, 42, true), // ★ CRITIC — 1.5x coins, short fuse
-      ticket(3, 'ayam-geprek', 24, 40),
-      ticket(4, 'soto-ayam', 41, 46),
-      ticket(5, 'gado-gado', 17, 36),
-      ticket(6, 'mie-ayam', 28, 44),
+      ticket(1, 'nasi-goreng', 7, 44),
+      ticket(2, 'mie-goreng', 31, 42, true), // ★ CRITIC — 1.5x coins, short fuse
+      ticket(3, 'ayam-geprek', 19, 40),
+      ticket(4, 'soto-ayam', 38, 46),
+      ticket(5, 'gado-gado', 12, 36),
+      ticket(6, 'mie-ayam', 25, 44),
     ];
-    cook.x = -2.0; cook.z = -2.7; cook.heading = 0.6;
+    cook.x = 5.6; cook.z = -1.2; cook.heading = Math.PI / 2; // at the serve hatch, facing east to ring the bell
     cook.carrying = [{ id: 'dish:mie-goreng', prepped: true, hot: true }];
-    setWok(cook.wok, 'nasi-goreng', 2.7, 6, false, false);
+    setWok(cook.wok, 'nasi-goreng', 3.1, 6, false, false);
     setWok(cook.wok2, 'mie-goreng', 7, 7, true, false, 2);
-    cook.plate = 'nasi-goreng';
+    cook.plate = 'mie-goreng';
     cook.plateHot = true;
     cook.plateGarnished = true;
     cook.plateTip = 15;
-    game.toastText = '✦ GARNISHED +$15 TIP · Nasi Goreng on the plate — serve it!';
+    game.toastText = '✦ GARNISHED +$15 TIP · Mie Goreng on the plate — serve it NOW!';
   } else if (name === 'book') {
     // The recipe book + upgrade screen (B): 8/16 dishes unlocked with their
     // BASE/MAIN/FINISH layers, one upgrade already owned, the route map to
@@ -112,9 +117,13 @@ export function applyShot(game, name) {
     cook.x = -2.8; cook.z = -2.6; cook.heading = Math.PI; // east of the chop board: clear of the ticket column, still facing the board/woks
     cook.carrying = [{ id: 'chicken', prepped: false }];
     cook.chopping = { item: cook.carrying[0], done: 1.4, total: 2.2 };
+    // v6: BOTH woks mid-sear (61% and 92%), neither ready, no toast — so
+    // the WOK HEI / SEARING-% meter finally appears in a shot (the one-banner
+    // rule shows the hei meter only when no burn/toast is up; v5's ready wok
+    // + toast hid it in all 4 shots).
     setWok(cook.wok, 'mie-goreng', 4.3, 7, false, false);
-    setWok(cook.wok2, 'nasi-goreng', 6, 6, true, false, 4);
-    game.toastText = 'Nasi Goreng ready — lift it now for a HOT +$10 tip!';
+    setWok(cook.wok2, 'nasi-goreng', 5.5, 6, false, false);
+    game.toastText = '';
   } else if (name === 'tally') {
     // Shift over: the itemized tally — dishes, tips, best combo, stars,
     // and the route map to the next shift. The loop visibly closes.

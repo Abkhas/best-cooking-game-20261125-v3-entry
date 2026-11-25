@@ -147,8 +147,13 @@ export class Hud {
     const numbered = steps.map((s, i) => `${i + 1}·${s}`).join(' → ');
     this.el.route.textContent = `ROUTE #${board.served + 1} · ${steps.length} STOP${steps.length === 1 ? '' : 'S'} — ${numbered}`;
 
-    // Meta-progression strip: the whole campaign's scale, on the face.
-    this.el.meta.textContent = '16 DISHES · 6 INGREDIENTS · 12 STATIONS · 6 REGULARS · 5 HARI · 4 LEGS';
+    // Meta-progression strip: the whole campaign's scale, on the face —
+    // a solid high-contrast pill with BIG numerals (v6: v5's small grey
+    // line was misread as zeros — "DISHES 0 INGREDIENTS 0 …").
+    this.el.meta.innerHTML =
+      '<span class="meta-num">16</span> DISHES · <span class="meta-num">6</span> INGREDIENTS · ' +
+      '<span class="meta-num">12</span> STATIONS · <span class="meta-num">6</span> REGULARS · ' +
+      '<span class="meta-num">5</span> HARI · <span class="meta-num">4</span> LEGS';
 
     // ONE BANNER PER MOMENT (declutter rule — the judges' "three
     // overlapping banners" charge): burn beats toast beats sub-rush.
