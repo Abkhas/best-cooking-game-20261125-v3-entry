@@ -8,7 +8,7 @@
 
 import * as THREE from 'three';
 import { STATIONS, DECOR, frontPoint } from './kitchen.js';
-import { INGREDIENTS, recipeName, routeSteps } from './recipes.js';
+import { INGREDIENTS, RECIPES, moodFor, recipeName, routeSteps } from './recipes.js';
 
 const WOOD = 0x8a5a33;
 const WOOD_DARK = 0x6b4226;
@@ -238,7 +238,46 @@ function buildDishGroup(recipeId, garnished) {
     return bits;
   };
   let bits = null;
-  if (recipeId === 'nasi-goreng') {
+  const generic = RECIPES.find((r) => r.id === recipeId)
+    && !['nasi-goreng', 'mie-goreng', 'ayam-geprek', 'soto-ayam', 'gado-gado'].includes(recipeId);
+  if (generic) {
+    // Layer-driven plate for the newer dishes: base mound/nest, main on top,
+    // finish as the visible top layer — the dish shows its layers.
+    const [b, m, f] = RECIPES.find((r) => r.id === recipeId).layers;
+    if (b === 'noodle') {
+      const nest = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.11, 8, 16), mat(0xffb347));
+      nest.rotation.x = Math.PI / 2; add(nest, 0, 0.18, 0);
+    } else if (b === 'veg') {
+      for (const [x, z] of [[-0.14, -0.1], [0.1, -0.14], [-0.02, 0.16]]) {
+        const cube = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.15), mat(0x66bb6a));
+        add(cube, x, 0.14, z);
+      }
+    } else if (b === 'chicken') {
+      for (const [x, z] of [[-0.1, -0.08], [0.14, 0.1]]) {
+        const ch = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.18), mat(0xe08a52));
+        ch.rotation.y = 0.5; add(ch, x, 0.2, z);
+      }
+    } else {
+      add(mound(new THREE.Color(INGREDIENTS[b].color).getHex()), 0, 0.16, 0);
+    }
+    if (m === 'egg') eggWhite(0.14, 0.1);
+    else if (m === 'chicken') {
+      const ch = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.18), mat(0xe08a52));
+      ch.rotation.y = 0.5; add(ch, 0.16, 0.22, -0.08);
+    } else if (m === 'veg') {
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.15), mat(0x66bb6a));
+      add(cube, 0.14, 0.2, 0.08);
+    }
+    if (f === 'chili') {
+      const sambal = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(0xc62828));
+      sambal.scale.y = 0.5; add(sambal, -0.14, 0.28, 0.05);
+    } else if (f === 'veg') {
+      bits = garnishBits(5);
+    } else if (f === 'egg') {
+      eggWhite(-0.14, -0.08);
+    }
+    if (!bits) bits = garnishBits(4);
+  } else if (recipeId === 'nasi-goreng') {
     add(mound(0xffcf4d), 0, 0.16, 0); // golden fried-rice mound
     eggWhite(0.14, 0.1); // fried egg, white + yolk, on top
     const chili = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.24, 8), mat(0xe53935));
@@ -335,16 +374,31 @@ export class World3D {
     this.buildRoom();
     this.buildStations();
     this.buildChef();
-    // The gold dashed route line on the floor: chef → next stop, always.
-    // Same plan as the HUD chip (routeSteps), so the two can never disagree.
+    // The gold route line on the floor: chef → every stop on the plan, in
+    // order. Same plan as the HUD chip (routeSteps), so the two can never
+    // disagree. Waypoint dots mark each stop; the line is the whole route,
+    // not just the next step.
     const routeGeo = new THREE.BufferGeometry();
-    routeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
+    routeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(24), 3));
     this.routeLine = new THREE.Line(routeGeo, new THREE.LineDashedMaterial({
       color: 0xffd166, dashSize: 0.28, gapSize: 0.18, transparent: true, opacity: 0.95,
     }));
     this.routeLine.userData.noShadow = true;
     this.routeLine.frustumCulled = false;
     this.scene.add(this.routeLine);
+    this.routeDots = [];
+    for (let i = 0; i < 4; i++) {
+      const dot = new THREE.Mesh(
+        new THREE.CircleGeometry(0.2, 16),
+        new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }),
+      );
+      dot.rotation.x = -Math.PI / 2;
+      dot.position.y = 0.08;
+      dot.userData.noShadow = true;
+      dot.visible = false;
+      this.scene.add(dot);
+      this.routeDots.push(dot);
+    }
     // Shadows on: everything solid casts and receives, except the floor
     // (receives only), sprites, glows and the sunset backdrop.
     this.scene.traverse((o) => {
@@ -413,6 +467,50 @@ export class World3D {
     sunset.position.set(9.6, 2.1, 2.3);
     sunset.userData.noShadow = true;
     g.add(sunset);
+    // A REAL street outside the window — not just the sunset poster:
+    // rooftops, a palm and the low sun as 3D silhouettes between the wall
+    // and the backdrop, over a strip of street ground.
+    const streetGround = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.3, 3.0),
+      new THREE.MeshLambertMaterial({ color: 0x6b4a2f }),
+    );
+    streetGround.rotation.x = -Math.PI / 2;
+    streetGround.position.set(8.95, 0.03, 2.3);
+    streetGround.userData.noShadow = true;
+    g.add(streetGround);
+    const roofMat = new THREE.MeshLambertMaterial({ color: 0x2a1630 });
+    for (const [x, y, z, w, h, d] of [[9.25, 0.55, 1.15, 0.55, 1.1, 1.1], [9.25, 0.45, 3.35, 0.55, 0.9, 0.9]]) {
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), roofMat);
+      roof.position.set(x, y, z);
+      roof.userData.noShadow = true;
+      g.add(roof);
+      const peak = new THREE.Mesh(new THREE.ConeGeometry(0.62, 0.35, 4), roofMat);
+      peak.position.set(x, y + h / 2 + 0.17, z);
+      peak.rotation.y = Math.PI / 4;
+      peak.userData.noShadow = true;
+      g.add(peak);
+    }
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 1.3, 8), roofMat);
+    trunk.position.set(9.3, 0.65, 2.55);
+    trunk.userData.noShadow = true;
+    g.add(trunk);
+    for (let i = 0; i < 5; i++) {
+      const frond = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.03, 0.12), roofMat);
+      const a = (i / 5) * Math.PI * 2;
+      frond.position.set(9.3 + Math.cos(a) * 0.3, 1.35, 2.55 + Math.sin(a) * 0.3);
+      frond.rotation.y = -a;
+      frond.rotation.z = 0.5;
+      frond.userData.noShadow = true;
+      g.add(frond);
+    }
+    const sunDisc = new THREE.Mesh(
+      new THREE.CircleGeometry(0.32, 20),
+      new THREE.MeshBasicMaterial({ color: 0xfff3c4, toneMapped: false }),
+    );
+    sunDisc.rotation.y = -Math.PI / 2;
+    sunDisc.position.set(9.45, 2.45, 1.5);
+    sunDisc.userData.noShadow = true;
+    g.add(sunDisc);
     for (const [w, h, x, y, z] of [
       [0.16, 0.18, 8.15, 2.79, 2.3], [0.16, 0.18, 8.15, 1.01, 2.3],
       [0.16, 1.96, 8.15, 1.9, 0.72], [0.16, 1.96, 8.15, 1.9, 3.88],
@@ -525,8 +623,9 @@ export class World3D {
         heap.add(piece);
       }
       g.add(heap);
-      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.95);
-      lab.position.set(s.x + 0.75, 1.7, s.z);
+      // Crate labels sit toward the room (east), clear of the left frame edge.
+      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.85);
+      lab.position.set(s.x + 1.05, 1.7, s.z);
       g.add(lab);
     } else if (s.kind === 'board') {
       box(1.5, 0.07, 0.9, 0xe8c98a, s.x, y + 0.04, s.z, g);
@@ -756,11 +855,33 @@ export class World3D {
       foodBit.position.set(d.x, 0.88, d.z - 0.55);
       g.add(foodBit);
       // Named regular, mood and all — the warung's people, not props.
+      // A live label: the mood follows their ticket's patience every frame.
       if (d.name) {
-        const nameLab = labelSprite(d.name, d.mood || '', 0.8);
-        nameLab.position.set(d.x, 1.85, d.z);
-        g.add(nameLab);
+        const nameLab = dynamicLabel();
+        nameLab.sprite.scale.set(1.6, 0.5, 1);
+        nameLab.sprite.position.set(d.x, 1.85, d.z);
+        nameLab.setText(d.name, d.mood || '');
+        g.add(nameLab.sprite);
+        this.customerLabels = this.customerLabels || [];
+        this.customerLabels.push({ api: nameLab, name: d.name });
       }
+    } else if (d.kind === 'cart') {
+      // Serving cart in the middle of the floor: bowls, a basket of limes,
+      // wheels — the empty middle of shots 2–3, filled.
+      box(1.5, 0.08, 0.85, WOOD_DARK, d.x, 0.85, d.z, g);
+      box(1.5, 0.5, 0.85, WOOD, d.x, 0.55, d.z, g);
+      for (const [ox, oz] of [[-0.65, -0.3], [0.65, -0.3], [-0.65, 0.3], [0.65, 0.3]]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.06, 12), mat(0x2b2118));
+        wheel.rotation.x = Math.PI / 2;
+        wheel.position.set(d.x + ox, 0.14, d.z + oz);
+        g.add(wheel);
+      }
+      for (let i = -1; i <= 1; i++) {
+        cyl(0.2, 0.15, 0.12, [0xc0392b, 0x2e7d5b, 0xef6c00][i + 1], d.x + i * 0.5, 0.95, d.z, g, 12);
+      }
+      const lab = labelSprite('SERVING CART', '', 0.7);
+      lab.position.set(d.x, 1.6, d.z);
+      g.add(lab);
     } else if (d.kind === 'basket') {
       // Foreground basket of chilies and limes at the frame's bottom edge.
       cyl(0.42, 0.32, 0.3, 0x8d6e3f, d.x, 0.15, d.z, g, 14);
@@ -866,26 +987,44 @@ export class World3D {
     this.chefParts.armL.rotation.x = cook.moving ? Math.sin(time * 11) * 0.7 : 0.15;
     this.chefParts.armR.rotation.x = cook.moving ? -Math.sin(time * 11) * 0.7 : 0.15;
 
-    // Gold dashed route line on the floor: chef → the next stop on the plan.
-    const step = routeSteps(cook)[0];
-    let target = null;
-    if (step === 'CHOP') target = STATIONS.find((s) => s.kind === 'board');
-    else if (step === 'WOK') target = !cook.wok.cooking
-      ? STATIONS.find((s) => s.id === 'wok1') : STATIONS.find((s) => s.id === 'wok2');
-    else if (step === 'PLATE') target = STATIONS.find((s) => s.kind === 'plate');
-    else if (step === 'SERVE') target = STATIONS.find((s) => s.kind === 'serve');
-    else if (step === 'CRATES') target = STATIONS.find((s) => s.id === 'crate-rice');
-    else target = STATIONS.find((s) => s.kind === 'crate' && INGREDIENTS[s.gives].name.toUpperCase() === step);
-    if (target) {
-      const f = frontPoint(target);
-      const pos = this.routeLine.geometry.attributes.position;
-      pos.setXYZ(0, cook.x, 0.07, cook.z);
-      pos.setXYZ(1, f.x, 0.07, f.z);
-      pos.needsUpdate = true;
-      this.routeLine.computeLineDistances();
-      this.routeLine.visible = true;
-    } else {
-      this.routeLine.visible = false;
+    // Gold dashed route line on the floor: chef → every stop on the plan,
+    // in order, with a waypoint dot on each stop.
+    const steps = routeSteps(cook);
+    const stepTarget = (step) => {
+      if (step === 'CHOP') return STATIONS.find((s) => s.kind === 'board');
+      if (step === 'WOK') return !cook.wok.cooking
+        ? STATIONS.find((s) => s.id === 'wok1') : STATIONS.find((s) => s.id === 'wok2');
+      if (step === 'PLATE') return STATIONS.find((s) => s.kind === 'plate');
+      if (step === 'SERVE') return STATIONS.find((s) => s.kind === 'serve');
+      if (step === 'CRATES') return STATIONS.find((s) => s.id === 'crate-rice');
+      return STATIONS.find((s) => s.kind === 'crate' && INGREDIENTS[s.gives].name.toUpperCase() === step);
+    };
+    const stops = steps.map(stepTarget).filter(Boolean).map(frontPoint);
+    const pos = this.routeLine.geometry.attributes.position;
+    pos.setXYZ(0, cook.x, 0.07, cook.z);
+    for (let i = 0; i < 7; i++) {
+      const p = stops[Math.min(i, stops.length - 1)];
+      pos.setXYZ(i + 1, p ? p.x : cook.x, 0.07, p ? p.z : cook.z);
+    }
+    pos.needsUpdate = true;
+    this.routeLine.geometry.setDrawRange(0, stops.length + 1);
+    this.routeLine.computeLineDistances();
+    this.routeLine.visible = stops.length > 0;
+    this.routeDots.forEach((dot, i) => {
+      const p = stops[i];
+      dot.visible = !!p;
+      if (p) dot.position.set(p.x, 0.08, p.z);
+    });
+
+    // Named regulars' moods follow their tickets: SENANG → LAPAR! → MARAH!
+    if (this.customerLabels) {
+      for (const { api, name } of this.customerLabels) {
+        const t = game.board.tickets.find((tk) => tk.customer && tk.customer.toUpperCase() === name);
+        const mood = t ? moodFor(Math.max(0, t.patience / t.patienceMax)) : 'MENUNGGU';
+        api.setText(name, mood, mood === 'MARAH!'
+          ? { bg: 'rgba(120,10,10,0.92)', border: '#ff5252', subColor: '#ffcdd2' }
+          : {});
+      }
     }
 
     // Carried items ride on the tray: ingredients as coloured balls, a
@@ -894,8 +1033,9 @@ export class World3D {
     if (this.carryDish) {
       this.carryDish.visible = !!dishCarried;
       if (dishCarried) {
-        const dishColor = { 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[dishCarried.id.slice(5)] || 0xffcf4d;
-        this.carryDishMound.material.color.set(dishColor);
+        const r = RECIPES.find((x) => x.id === dishCarried.id.slice(5));
+        const base = r ? INGREDIENTS[r.layers[0]].color : '#ffcf4d';
+        this.carryDishMound.material.color.set(new THREE.Color(base).getHex());
       }
     }
     const ingCarried = cook.carrying.filter((c) => !c.id.startsWith('dish:'));
@@ -918,7 +1058,10 @@ export class World3D {
     });
 
     // Woks: layered food, steam, smoke, progress ring, and the burn countdown.
-    const dishColorFor = (id) => ({ 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[id] || 0xcf8a4b);
+    const dishColorFor = (id) => {
+      const r = RECIPES.find((x) => x.id === id);
+      return r ? new THREE.Color(INGREDIENTS[r.layers[0]].color).getHex() : 0xcf8a4b;
+    };
     for (const [idx, [id, wok]] of [['wok1', cook.wok], ['wok2', cook.wok2]].entries()) {
       const food = this.wokFood[id];
       food.visible = wok.items.length > 0;

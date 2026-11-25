@@ -10,7 +10,7 @@ import { World3D } from './world3d.js';
 import { Hud } from './hud.js';
 import { Sfx } from './audio.js';
 import { applyShot, runSelfTest } from './shots.js';
-import { recipeName } from './recipes.js';
+import { recipeName, UPGRADES } from './recipes.js';
 
 const canvas = document.getElementById('game');
 const sfx = new Sfx();
@@ -24,6 +24,7 @@ const game = {
   elapsed: 0,
   hearts: 3,
   shot: null,
+  bookOpen: false, // recipe book + upgrade screen (B)
   cook, board,
 };
 
@@ -45,11 +46,13 @@ function resetShift() {
   cook.wok = { items: [], cooking: 0, cookTime: 0, ready: false, burnt: false, recipe: null };
   cook.wok2 = { items: [], cooking: 0, cookTime: 0, ready: false, burnt: false, recipe: null };
   board.tickets = []; board.served = 0; board.lost = 0;
-  board.coins = 0; board.combo = 0; board.bestCombo = 0; board.comboTimer = 0;
+  board.coins = 0; board.tips = 0; board.combo = 0; board.bestCombo = 0; board.comboTimer = 0;
   board.spawnIn = 2.5; board.nextId = 1;
   game.elapsed = 0;
   game.hearts = 3;
   game.toastText = '';
+  game.bookOpen = false;
+  cook.upgrades = new Set(); // a new shift starts un-upgraded
   cook.plateHot = false;
   cook.plateGarnished = false;
   cook.plateTip = 0;
@@ -79,6 +82,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (k === 'm') { sfx.muted = !sfx.muted; return; }
   if (k === 'r' && game.phase !== 'title') { startShift(); return; }
+  if (k === 'b' && game.phase === 'playing') { game.bookOpen = !game.bookOpen; return; }
   if (game.phase === 'title' && (k === 'enter' || k === ' ')) { startShift(); return; }
   if (game.phase === 'over' && (k === 'enter' || k === ' ')) { startShift(); return; }
   if (game.phase !== 'playing') return;
@@ -114,6 +118,17 @@ canvas.addEventListener('pointerdown', (e) => {
 
 document.getElementById('start-btn')?.addEventListener('click', startShift);
 document.getElementById('again-btn')?.addEventListener('click', startShift);
+document.getElementById('book-close-btn')?.addEventListener('click', () => { game.bookOpen = false; });
+// Buy an upgrade with coins: the book is a real shop, not a poster.
+document.getElementById('book-upgrades')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-upg]');
+  if (!btn || btn.disabled) return;
+  const upg = UPGRADES.find((u) => u.id === btn.dataset.upg);
+  if (!upg || board.coins < upg.cost || cook.upgrades.has(upg.id)) return;
+  board.coins -= upg.cost;
+  cook.upgrades.add(upg.id);
+  hud.showToast(`Bought ${upg.name}!`);
+});
 
 const clock = new THREE.Clock();
 let promptText = '';
@@ -124,7 +139,7 @@ function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   const t = clock.elapsedTime;
 
-  if (game.phase === 'playing' && !game.shot) {
+  if (game.phase === 'playing' && !game.shot && !game.bookOpen) {
     game.elapsed += dt;
     const expired = board.update(dt, game.elapsed);
     if (expired > 0) {

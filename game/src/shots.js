@@ -5,11 +5,12 @@
 // same functions the keyboard uses, then reports the result in the page
 // so a headless run can read it.
 
-import { RECIPES } from './recipes.js';
+import { CUSTOMERS, RECIPES } from './recipes.js';
 
 function ticket(id, recipeId, patience, patienceMax, vip = false) {
   const recipe = RECIPES.find((r) => r.id === recipeId);
-  return { id, recipe, patience, patienceMax, born: 0, flash: 0, vip };
+  return { id, recipe, patience, patienceMax, born: 0, flash: 0, vip,
+    customer: CUSTOMERS[(id - 1) % CUSTOMERS.length] };
 }
 
 function setWok(wok, recipeId, cooking, cookTime, ready, burnt, burnLeft = 5) {
@@ -25,35 +26,41 @@ function setWok(wok, recipeId, cooking, cookTime, ready, burnt, burnLeft = 5) {
 }
 
 /** Put the game into a fixed mid-shift scene for a screenshot.
- *  One camera for all four shots; the STATES escalate (timer down, streak
- *  up, more orders, more pressure) — the set reads as one rush getting busier.
- *  Staged numbers are deliberately unlike the old cover (320 / ×3 / 5). */
+ *  FOUR DIFFERENT SCREENS of one game — never four kitchen angles:
+ *  cover = mid-rush kitchen, book = recipe book + upgrades, cooking =
+ *  mid-cook with the route line, tally = shift-over tally. The states
+ *  escalate (timer down, streak up, more orders, more pressure) — the set
+ *  reads as one rush getting busier, then closing out. */
 export function applyShot(game, name) {
   const { cook, board } = game;
   game.phase = 'playing';
   game.elapsed = 75;
   game.hearts = 3;
   game.shot = name;
+  game.bookOpen = false;
   game.toastText = '';
   board.tickets = [];
   board.coins = 0;
   board.combo = 0;
   board.served = 0;
   board.lost = 0;
+  board.tips = 0;
   cook.carrying = [];
   cook.plate = null;
   cook.plateHot = false;
   cook.plateGarnished = false;
   cook.plateTip = 0;
   cook.chopping = null;
+  cook.upgrades = new Set();
   setWok(cook.wok, null, 0, 0, false, false);
   setWok(cook.wok2, null, 0, 0, false, false);
 
   if (name === 'cover') {
     // Golden-hour dinner rush, mid-action: the chef stands AT wok 1 carrying
     // a garnished plate toward the serve window, wok 1 SEARING 45%, wok 2
-    // READY with a 3s burn countdown, a garnished Nasi Goreng on the plate
-    // counter, one ticket at 9s and flashing red.
+    // READY with a 2s burn countdown, a garnished Nasi Goreng on the plate
+    // counter, one ticket at 9s and MARAH. KENDURI course 2/3 is running,
+    // with the SAMBAL RUSH sub-timer inside it.
     game.elapsed = 108;
     board.coins = 547; board.combo = 5; board.served = 9; board.lost = 1;
     board.tickets = [
@@ -62,7 +69,7 @@ export function applyShot(game, name) {
       ticket(3, 'ayam-geprek', 24, 40),
       ticket(4, 'soto-ayam', 41, 46),
       ticket(5, 'gado-gado', 17, 36),
-      ticket(6, 'nasi-goreng', 28, 44),
+      ticket(6, 'mie-ayam', 28, 44),
     ];
     cook.x = -2.0; cook.z = -2.7; cook.heading = 0.6;
     cook.carrying = [{ id: 'dish:mie-goreng', prepped: true, hot: true }];
@@ -73,53 +80,52 @@ export function applyShot(game, name) {
     cook.plateGarnished = true;
     cook.plateTip = 15;
     game.toastText = '✦ GARNISHED +$15 TIP · Nasi Goreng on the plate — serve it!';
-  } else if (name === 'orders') {
-    // Early shift: a full board of five tickets, chef at the crates.
-    game.elapsed = 25;
-    board.coins = 85; board.combo = 2; board.served = 2;
+  } else if (name === 'book') {
+    // The recipe book + upgrade screen (B): 8/16 dishes unlocked with their
+    // BASE/MAIN/FINISH layers, one upgrade already owned, the route map to
+    // the next stop — the meta-layer, as a real in-game screen.
+    game.elapsed = 75;
+    board.coins = 320; board.combo = 4; board.served = 9; board.tips = 45;
     board.tickets = [
       ticket(1, 'nasi-goreng', 40, 46),
       ticket(2, 'mie-goreng', 30, 44),
       ticket(3, 'soto-ayam', 44, 48),
       ticket(4, 'ayam-geprek', 20, 42),
       ticket(5, 'gado-gado', 34, 44),
-      ticket(6, 'mie-goreng', 26, 44),
+      ticket(6, 'mie-ayam', 26, 44),
     ];
+    cook.upgrades = new Set(['pisau-tajam']);
+    game.bookOpen = true;
     cook.x = -6.0; cook.z = -1.7; cook.heading = Math.PI / 2;
-    cook.carrying = [{ id: 'rice', prepped: true }, { id: 'noodle', prepped: true }];
+    cook.carrying = [{ id: 'rice', prepped: true }, { id: 'egg', prepped: true }];
   } else if (name === 'cooking') {
     // Mid-shift rush: chicken on the board, one wok sizzling at 61%, one
-    // READY with 4s left on its burn clock.
+    // READY with 4s left on its burn clock — and the chef ON the gold route
+    // line, mid-carry between chop and wok. ROUTE #7, 4 stops left.
     game.elapsed = 95;
     board.coins = 380; board.combo = 4; board.served = 6;
     board.tickets = [
       ticket(1, 'ayam-geprek', 18, 36),
       ticket(2, 'soto-ayam', 30, 38),
       ticket(3, 'mie-goreng', 26, 40),
+      ticket(4, 'nasi-ayam', 22, 40),
     ];
     cook.x = -4.9; cook.z = -2.9; cook.heading = Math.PI;
     cook.carrying = [{ id: 'chicken', prepped: false }];
     cook.chopping = { item: cook.carrying[0], done: 1.4, total: 2.2 };
     setWok(cook.wok, 'mie-goreng', 4.3, 7, false, false);
-    setWok(cook.wok2, 'nasi-goreng', 6, 6, true, false, 2);
+    setWok(cook.wok2, 'nasi-goreng', 6, 6, true, false, 4);
     game.toastText = 'Nasi Goreng ready — lift it now for a HOT +$10 tip!';
-  } else if (name === 'plating') {
-    // Last call: the chef at the serve window with a finished Ayam Geprek,
-    // a GARNISHED Gado-Gado on the plate counter, one wok still at 60%.
-    game.elapsed = 155;
-    board.coins = 640; board.combo = 6; board.served = 11;
-    board.tickets = [
-      ticket(1, 'soto-ayam', 22, 34),
-      ticket(2, 'nasi-goreng', 8, 32),
-    ];
+  } else if (name === 'tally') {
+    // Shift over: the itemized tally — dishes, tips, best combo, stars,
+    // and the route map to the next shift. The loop visibly closes.
+    game.phase = 'over';
+    game.elapsed = 180;
+    board.coins = 892; board.combo = 6; board.served = 14; board.lost = 1;
+    board.tips = 85; board.bestCombo = 6;
+    board.tickets = [];
     cook.x = 6.0; cook.z = -1.0; cook.heading = -Math.PI / 2;
     cook.carrying = [{ id: 'dish:ayam-geprek', prepped: true, hot: true }];
-    cook.plate = 'gado-gado';
-    cook.plateHot = false;
-    cook.plateGarnished = true;
-    cook.plateTip = 15;
-    setWok(cook.wok, 'soto-ayam', 5.4, 9, false, false);
-    game.toastText = '✦ GARNISHED +$15 TIP · Ayam Geprek READY!';
   }
 }
 

@@ -34,6 +34,8 @@ export const DECOR = [
   // Seated customers eating at the tables — named regulars with moods.
   { id: 'cust1', kind: 'customer', x: -4.6, z: 4.1, w: 0.8, d: 0.8, shirt: 0x7e57c2, name: 'PAK DARMO', mood: 'LAPAR!' },
   { id: 'cust2', kind: 'customer', x: 4.6, z: 4.1, w: 0.8, d: 0.8, shirt: 0x00897b, name: 'BU LASTRI', mood: 'SENANG' },
+  // Serving cart mid-floor — the empty middle of the old shots, filled.
+  { id: 'cart', kind: 'cart', x: 3.4, z: 0.8, w: 1.6, d: 0.9 },
   // Foreground props at the south edge, so the frame bottom is kitchen, not wall.
   { id: 'fg-basket', kind: 'basket', x: -5.9, z: 4.5, w: 0.9, d: 0.9 },
   { id: 'fg-plates', kind: 'plates', x: 5.9, z: 4.5, w: 0.9, d: 0.9 },

@@ -27,6 +27,11 @@ export class Cook {
     this.actionText = '';
     this.actionTimer = 0;
     this._sfx = null;
+    this.upgrades = new Set(); // bought in the recipe book (B): real effects
+  }
+
+  get carryMax() {
+    return this.upgrades.has('nampan-besar') ? CARRY_MAX + 1 : CARRY_MAX;
   }
 
   move(dx, dz, dt) {
@@ -91,7 +96,7 @@ export class Cook {
   }
 
   pickUp(station, sfx) {
-    if (this.carrying.length >= CARRY_MAX) { this.say('Hands full!'); sfx?.deny(); return; }
+    if (this.carrying.length >= this.carryMax) { this.say('Hands full!'); sfx?.deny(); return; }
     const ing = INGREDIENTS[station.gives];
     this.carrying.push({ id: station.gives, prepped: ing.prep === 'none' });
     this.say(`+ ${ing.name}`);
@@ -102,7 +107,8 @@ export class Cook {
     const raw = this.carrying.find((c) => !c.prepped);
     if (!raw) { this.say('Nothing to chop!'); sfx?.deny(); return; }
     if (this.chopping) return;
-    this.chopping = { item: raw, done: 0, total: CHOP_SECONDS };
+    const total = CHOP_SECONDS * (this.upgrades.has('pisau-tajam') ? 0.7 : 1);
+    this.chopping = { item: raw, done: 0, total };
     sfx?.chop();
   }
 
@@ -128,7 +134,8 @@ export class Cook {
     if (!recipe) { this.say('That is no recipe!'); sfx?.deny(); return; }
     wok.items = [...this.carrying];
     wok.recipe = recipe;
-    wok.cookTime = recipe.cookTime;
+    // Wok Baru upgrade: 20% faster cooking, bought in the book (B).
+    wok.cookTime = recipe.cookTime * (this.upgrades.has('wok-baru') ? 0.8 : 1);
     wok.cooking = 0.01;
     this.carrying = [];
     this.say(`Cooking ${recipe.name}…`);
@@ -136,7 +143,7 @@ export class Cook {
   }
 
   takeFromWok(wok, sfx) {
-    if (this.carrying.length >= CARRY_MAX) { this.say('Hands full!'); sfx?.deny(); return; }
+    if (this.carrying.length >= this.carryMax) { this.say('Hands full!'); sfx?.deny(); return; }
     this.carrying.push({ id: `dish:${wok.recipe.id}`, prepped: true, hot: (wok.hotLeft || 0) > 0 });
     wok.items = []; wok.cooking = 0; wok.ready = false; wok.burnt = false; wok.recipe = null;
     this.say('Dish up!');

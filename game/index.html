@@ -9,12 +9,19 @@
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
   .hud { position: fixed; z-index: 5; pointer-events: none; user-select: none; color: #fff8e7; }
-  /* Order board, top left */
-  #orders { left: 12px; top: 12px; width: 236px; }
+  /* Order board, top left — narrow, flex rows, nothing floats or clips */
+  #orders { left: 12px; top: 12px; width: 224px; }
   #orders h2 { margin: 0 0 6px 0; font-size: 15px; letter-spacing: .14em; color: #ffd166;
     text-shadow: 0 2px 4px rgba(0,0,0,.8); }
   .ticket { background: rgba(24,16,10,.88); border: 2px solid #ffd166; border-radius: 10px;
-    padding: 5px 10px; margin-bottom: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+    padding: 5px 8px; margin-bottom: 5px; box-shadow: 0 2px 8px rgba(0,0,0,.5); overflow: hidden; }
+  .t-row { display: flex; align-items: baseline; gap: 6px; }
+  .t-cust { font-weight: 800; font-size: 12px; color: #ffe0b2; }
+  .t-mood { font-size: 11px; font-weight: 900; letter-spacing: .05em; color: #aed581; }
+  .t-mood.angry { color: #ff5252; }
+  .t-secs { margin-left: auto; font-size: 12px; font-weight: 800; color: #ffd166; white-space: nowrap; }
+  .ticket.low .t-secs { color: #ff8a80; }
+  .t-layers { font-size: 10px; color: #ffd166; font-weight: 600; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ticket.low { border-color: #e53935; }
   .ticket.low .t-name { color: #ff8a80; }
   .ticket.vip { border-color: #e8b64c; box-shadow: 0 0 0 2px rgba(232,182,76,.35), 0 2px 8px rgba(0,0,0,.5); }
@@ -22,7 +29,7 @@
   .ticket.flash { animation: flash .3s ease-in-out 2; }
   @keyframes flash { 50% { background: rgba(229,57,53,.55); } }
   .ticket.empty { color: #d7ccc8; font-size: 13px; border-style: dashed; }
-  .t-name { font-weight: 800; font-size: 14px; }
+  .t-name { font-weight: 800; font-size: 13px; }
   .t-needs { display: flex; flex-wrap: wrap; align-items: center; gap: 0; margin: 4px 0 5px; }
   .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,.75); display: inline-block; }
   .t-price { margin-left: auto; font-weight: 800; color: #ffd166; font-size: 14px; }
@@ -42,6 +49,10 @@
   #phase { font-size: 16px; font-weight: 900; letter-spacing: .18em; color: #fff;
     text-shadow: 0 2px 4px rgba(0,0,0,.8); margin-top: 2px; }
   #phase.rush { color: #ff8a65; }
+  #event { font-size: 13px; font-weight: 800; letter-spacing: .08em; color: #ffd166;
+    text-shadow: 0 2px 4px rgba(0,0,0,.8); margin-top: 2px; }
+  #subtimer { display: none; font-size: 13px; font-weight: 900; letter-spacing: .06em;
+    color: #fff; background: #c62828; border-radius: 8px; padding: 2px 10px; margin-top: 4px; }
   #record { font-size: 14px; color: #ffe0b2; min-height: 18px; }
   /* Burn / garnish banner under the timer — hidden unless something is live */
   #burnbar { display: none; font-size: 16px; font-weight: 900; letter-spacing: .04em;
@@ -50,21 +61,19 @@
     border: 2px solid #ff8a65; animation: pulse .8s ease-in-out infinite; }
   #burnbar.show.garnish { display: inline-block; color: #1d130c; background: #aed581;
     border: 2px solid #66bb6a; }
-  .t-secs { float: right; font-size: 13px; color: #ffd166; }
-  .ticket.low .t-secs { color: #ff8a80; }
   .t-prep { font-size: 11px; color: #ffd166; margin: 0 0 4px; font-weight: 600; }
   .t-pill { display: inline-flex; align-items: center; gap: 3px; background: rgba(255,255,255,.10);
     border-radius: 8px; padding: 2px 6px; font-size: 11px; font-weight: 700; margin: 0 3px 3px 0; }
   .t-pill .dot { width: 9px; height: 9px; border-width: 1px; }
   .t-pill em { font-style: normal; color: #ffd166; font-size: 10px; }
-  #toast { display: none; font-size: 17px; font-weight: 800; color: #1d130c;
-    background: #ffd166; border-radius: 12px; padding: 6px 18px; margin-bottom: 8px;
+  #toast { display: none; font-size: 16px; font-weight: 800; color: #1d130c;
+    background: #ffd166; border-radius: 12px; padding: 5px 16px; margin-bottom: 6px;
     box-shadow: 0 4px 14px rgba(0,0,0,.6); }
   #toast.show { display: inline-block; }
   /* Route planner chip: the next stops, in order */
-  #route { display: inline-block; font-size: 14px; font-weight: 800; letter-spacing: .05em;
+  #route { display: inline-block; font-size: 13px; font-weight: 800; letter-spacing: .04em;
     color: #ffd166; background: rgba(24,16,10,.88); border: 2px dashed #ffd166;
-    border-radius: 12px; padding: 4px 14px; margin-bottom: 6px; }
+    border-radius: 12px; padding: 3px 12px; margin-bottom: 5px; }
   .carry-item.assembly { border-color: #66bb6a; color: #c8e6c9; }
   /* Score, top right */
   #score { right: 12px; top: 12px; text-align: right; font-weight: 800; font-size: 20px;
@@ -72,8 +81,8 @@
   #hearts { color: #ff5252; font-size: 22px; letter-spacing: 2px; }
   #combo { color: #ffd166; font-size: 16px; min-height: 20px; }
   /* Bottom bar: carried tray, prompt, chop progress */
-  #bottom { left: 50%; bottom: 12px; transform: translateX(-50%); width: 760px; max-width: 92vw; text-align: center; }
-  #carry { margin-bottom: 6px; min-height: 28px; }
+  #bottom { left: 50%; bottom: 10px; transform: translateX(-50%); width: 760px; max-width: 92vw; text-align: center; }
+  #carry { margin-bottom: 4px; min-height: 28px; }
   .carry-item { display: inline-block; background: rgba(24,16,10,.88); border: 2px solid #fff;
     border-radius: 16px; padding: 4px 12px; margin: 0 4px; font-weight: 700; font-size: 14px; }
   .carry-empty { color: rgba(255,248,231,.75); font-size: 14px; }
@@ -86,6 +95,10 @@
   .screen { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column;
     align-items: center; justify-content: center; text-align: center; color: #fff8e7;
     background: rgba(20,12,6,.55); }
+  /* While a full screen is open, the play HUD stays out of the frame. */
+  body.overlay-open #orders, body.overlay-open #timer-wrap,
+  body.overlay-open #score, body.overlay-open #bottom { display: none; }
+  #over-screen { background: rgba(20,12,6,.82); }
   .screen h1 { font-size: 58px; margin: 0; letter-spacing: .04em; color: #ffd166;
     text-shadow: 0 4px 0 #7a2e1d, 0 8px 24px rgba(0,0,0,.8); }
   .screen h2 { font-size: 22px; margin: 6px 0 18px; font-weight: 600; }
@@ -96,6 +109,31 @@
   .screen button:active { transform: translateY(4px); box-shadow: 0 2px 0 #7a2e1d; }
   .screen .keys { font-size: 14px; color: #ffe0b2; }
   #over-stats { font-size: 20px; line-height: 1.7; margin-bottom: 18px; }
+  .tally-stars { font-size: 40px; color: #ffd166; letter-spacing: 6px; }
+  .tally-row { display: flex; justify-content: space-between; gap: 40px; font-size: 18px;
+    border-bottom: 1px dashed rgba(255,209,102,.4); padding: 3px 0; }
+  .tally-row.total { font-size: 22px; font-weight: 900; color: #ffd166; border-bottom: none; }
+  .tally-route { margin-top: 14px; font-size: 15px; color: #ffe0b2; line-height: 1.6; }
+  /* Recipe book + upgrade screen (B) — a real in-game screen, not a mockup */
+  #book-screen { pointer-events: auto; background: rgba(20,12,6,.88); justify-content: flex-start; padding-top: 26px; overflow-y: auto; }
+  #book-screen h1 { font-size: 34px; }
+  #book-screen h2 { font-size: 16px; margin: 4px 0 10px; }
+  #book-coins { font-size: 17px; font-weight: 900; color: #ffd166; margin-bottom: 10px; }
+  #book-recipes { display: grid; grid-template-columns: repeat(4, 208px); gap: 8px; margin-bottom: 14px; }
+  .book-card { background: rgba(24,16,10,.92); border: 2px solid #ffd166; border-radius: 10px;
+    padding: 7px 10px; text-align: left; }
+  .book-card.locked { border-color: rgba(255,255,255,.25); color: #9e9e9e; }
+  .b-name { font-weight: 800; font-size: 14px; }
+  .b-layers { font-size: 11px; color: #ffd166; margin: 3px 0; line-height: 1.4; }
+  .book-card.locked .b-layers { color: #9e9e9e; }
+  .b-price { font-size: 12px; font-weight: 700; color: #ffe0b2; }
+  #book-upgrades { display: flex; gap: 10px; margin-bottom: 12px; }
+  .upg { font-size: 14px; font-weight: 800; padding: 10px 16px; border-radius: 12px;
+    border: 2px solid #ffd166; background: #2e7d5b; color: #fff; cursor: pointer; }
+  .upg span { display: block; font-size: 11px; font-weight: 600; color: #ffe0b2; margin-top: 3px; }
+  .upg:disabled { opacity: .55; cursor: default; }
+  .upg.owned { background: #6b4226; }
+  #book-route { font-size: 14px; font-weight: 700; color: #ffe0b2; margin-bottom: 14px; }
   #selftest { position: fixed; left: -9999px; top: 0; }
 </style>
 <script type="importmap">
@@ -106,7 +144,7 @@
 <canvas id="game"></canvas>
 
 <div class="hud" id="orders"><h2>📋 ORDER BOARD</h2></div>
-<div class="hud" id="timer-wrap"><div id="timer">3:00</div><div id="timer-label">SHIFT TIMER</div><div id="phase">OPENING</div><div id="burnbar"></div></div>
+<div class="hud" id="timer-wrap"><div id="timer">3:00</div><div id="timer-label">SHIFT TIMER</div><div id="phase">OPENING</div><div id="event"></div><div id="subtimer"></div><div id="burnbar"></div></div>
 <div class="hud" id="score"><div id="coins">🪙 0</div><div id="hearts">♥♥♥</div><div id="combo"></div><div id="record"></div></div>
 
 <div class="hud" id="bottom">
@@ -132,6 +170,17 @@
   that grows every minute. Five recipes in all — the last, Gado-Gado, unlocks late in the shift.</p>
   <p class="keys">WASD / arrows or click to walk &nbsp;·&nbsp; E use a station &nbsp;·&nbsp; R restart</p>
   <button id="start-btn">▶ START SHIFT</button>
+</div>
+
+<div class="screen" id="book-screen" style="display:none">
+  <h1>📖 RECIPE BOOK</h1>
+  <h2 id="book-sub">Every dish, layered BASE · MAIN · FINISH — press B to close</h2>
+  <div id="book-coins"></div>
+  <div id="book-recipes"></div>
+  <h2>WARUNG UPGRADES — spend coins, keep them all shift</h2>
+  <div id="book-upgrades"></div>
+  <div id="book-route">RUTE WARUNG: GANG MAWAR → <b>PASAR</b> → STASIUN — next stop: PASAR</div>
+  <button id="book-close-btn">▶ BACK TO THE WOKS</button>
 </div>
 
 <div class="screen" id="over-screen" style="display:none">

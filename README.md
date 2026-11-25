@@ -11,7 +11,7 @@ ticket's patience runs out.
 - **WASD / arrow keys or click** to walk the kitchen.
 - **E** (or Space) to use the nearest station: grab from crates, chop on the
   board, cook in a wok, take a ready dish, plate it, serve it, trash burnt food.
-- **R** restart the shift, **M** mute.
+- **R** restart the shift, **M** mute, **B** recipe book + upgrades.
 - 3-minute shift, 3 hearts. A ticket that runs out of patience costs a heart.
 - Lift a dish within 5 seconds of it leaving the wok and it goes out HOT: +$10 tip.
 - Garnish a plated dish at the plate counter before serving: +$15 tip.
@@ -27,15 +27,18 @@ ticket's patience runs out.
 
 | Dish | Needs | Price | Cook |
 | --- | --- | --- | --- |
-| Nasi Goreng | rice, egg, chili | $60 | 6s |
-| Mie Goreng | noodle, egg, veg (chopped) | $70 | 7s |
-| Ayam Geprek | chicken (chopped), chili, rice | $90 | 8s |
-| Soto Ayam | chicken (chopped), veg (chopped), rice | $100 | 9s |
-| Gado-Gado | veg (chopped), egg, chili | $80 | 7s |
+| Nasi Goreng | BASE rice · MAIN egg · FINISH chili | $60 | 6s |
+| Mie Goreng | BASE noodle · MAIN egg · FINISH veg | $70 | 7s |
+| Ayam Geprek | BASE rice · MAIN chicken · FINISH chili | $90 | 8s |
+| Soto Ayam | BASE rice · MAIN chicken · FINISH veg | $100 | 9s |
+| Gado-Gado | BASE veg · MAIN egg · FINISH chili | $80 | 7s |
+| + 11 more | Nasi Ayam, Mie Ayam, Nasi Pecel, Mie Pedas, Ayam Bakar, Mie Soto, Nasi Uduk, Ayam Sayur, Mie Sayur, Nasi Campur, Mie Geprek — see the in-game recipe book (B) | | |
 
-New recipes unlock as the shift goes on, tickets arrive faster, and patience
+Sixteen recipes in all — new ones unlock one at a time as the shift goes on, tickets arrive faster, and patience
 shrinks — the rush grows without adding chores. A dish left in the wok 5
-seconds past ready burns and must be trashed.
+seconds past ready burns and must be trashed. Press **B** any time for the
+recipe book (n/16, layered BASE / MAIN / FINISH) and the upgrade shop; the
+shift ends on an itemized tally with stars and the route map to the next stop.
 
 ## Tech
 
@@ -50,7 +53,7 @@ seconds past ready burns and must be trashed.
   `audio.js` (synthesized sizzle and dings), `shots.js` (staged scenes + self-test),
   `main.js` (loop and input).
 - Screenshots are real renders of the game's own code, staged with
-  `?shot=cover|orders|cooking|plating`. `?selftest=1` plays one full order
+  `?shot=cover|book|cooking|tally` — four different screens: mid-rush kitchen, recipe book + upgrades, mid-cook with the route line, shift-over tally. `?selftest=1` plays one full order
   (crate → wok → plate → serve, plus the chopping path) through the real
   interact functions and reports PASS/FAIL in the page.
 

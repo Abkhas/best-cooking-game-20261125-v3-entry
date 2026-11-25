@@ -3,7 +3,7 @@
 // the right dish while patience is left and the warung earns; let patience
 // run out and a heart is lost. Serving fast in a row builds a combo.
 
-import { unlockedRecipes } from './recipes.js';
+import { CUSTOMERS, unlockedRecipes } from './recipes.js';
 
 export const SHIFT_SECONDS = 180;
 
@@ -15,6 +15,7 @@ export class OrderBoard {
     this.served = 0;
     this.lost = 0;
     this.coins = 0;
+    this.tips = 0; // HOT + garnish tips banked, itemized on the tally
     this.combo = 0;
     this.bestCombo = 0;
     this.comboTimer = 0;
@@ -39,9 +40,12 @@ export class OrderBoard {
       ? Math.round(this.patienceFor(elapsedSec) * 0.7)
       : this.patienceFor(elapsedSec);
     this.tickets.push({
-      id: this.nextId++, recipe, patience, patienceMax: patience,
+      id: this.nextId, recipe, patience, patienceMax: patience,
       born: elapsedSec, flash: 0, vip,
+      // Every ticket belongs to a named regular — their mood is the ticket.
+      customer: CUSTOMERS[(this.nextId - 1) % CUSTOMERS.length],
     });
+    this.nextId++;
   }
 
   update(dt, elapsedSec) {
@@ -75,6 +79,8 @@ export class OrderBoard {
     const ticket = this.tickets[idx];
     const patienceShare = Math.max(0, ticket.patience / ticket.patienceMax);
     let earned = Math.round(ticket.recipe.price * (0.6 + 0.4 * patienceShare)) + this.combo * 10 + (hot ? 10 : 0) + (garnish ? 15 : 0);
+    if (hot) this.tips += 10;
+    if (garnish) this.tips += 15;
     if (ticket.vip) earned = Math.round(earned * 1.5); // critic pays 1.5x
     this.tickets.splice(idx, 1);
     this.served++;
