@@ -38,7 +38,7 @@ const SHOT_PROMPTS = {
   cover: 'SERVE NOW — [SPACE] at the hatch · ring the bell!',
   book: '[B] close the book · spend coins on an upgrade',
   cooking: 'GRAB THE SEARING WOK — [E] before it burns!',
-  tally: '[ENTER] cook the next leg — HARI 3 awaits',
+  tally: '[ENTER] cook the next leg — HARI 2 awaits',
 };
 
 function resize() {
@@ -50,7 +50,7 @@ window.addEventListener('resize', resize);
 resize();
 
 function resetShift() {
-  cook.x = 0; cook.z = 2.6; cook.heading = Math.PI;
+  cook.x = 0; cook.z = 2.6; cook.heading = Math.PI; cook.stop();
   cook.carrying = []; cook.chopping = null; cook.plate = null;
   cook.wok = { items: [], cooking: 0, cookTime: 0, ready: false, burnt: false, recipe: null };
   cook.wok2 = { items: [], cooking: 0, cookTime: 0, ready: false, burnt: false, recipe: null };
@@ -195,6 +195,11 @@ function frame() {
         }
         clickTarget = null;
       }
+    } else {
+      // No input at all: the cook is standing still — kill the walk cycle
+      // here, every frame. (v6 idle bug: this branch never touched
+      // `moving`, so it stayed true from the last step forever.)
+      cook.stop();
     }
     // Prompt for the nearest station.
     const near = nearestStation(cook.x, cook.z);
@@ -223,10 +228,12 @@ function frame() {
   hud.render(game);
   world.sync(game, t);
   if (game.phase === 'title') {
-    // Slow orbit around the kitchen while the title shows.
+    // Slow orbit around the kitchen while the title shows — close enough
+    // that the warung fills the frame (v6: a wide orbit left large empty
+    // brown borders around a small tilted diorama).
     const a = t * 0.12;
-    world.camera.position.set(Math.sin(a) * 11, 9.5, Math.cos(a) * 8 + 1);
-    world.camera.lookAt(0, 0, -0.5);
+    world.camera.position.set(Math.sin(a) * 8.2, 7.6, Math.cos(a) * 6.2 + 1);
+    world.camera.lookAt(0, 0.4, -0.5);
   } else {
     world.followCamera(cook, game.shot);
   }
@@ -238,6 +245,7 @@ const params = new URLSearchParams(location.search);
 const shot = params.get('shot');
 if (shot) applyShot(game, shot);
 window.__game = game;
+window.__world = world; // playtest hook: limb rotations, camera, projection
 frame();
 if (params.get('selftest') === '1') {
   setTimeout(() => runSelfTest(game), 300);

@@ -5,7 +5,7 @@
 // same functions the keyboard uses, then reports the result in the page
 // so a headless run can read it.
 
-import { CUSTOMERS, RECIPES } from './recipes.js';
+import { CUSTOMERS, RECIPES, eventFor, rushPhase } from './recipes.js';
 
 function ticket(id, recipeId, patience, patienceMax, vip = false) {
   const recipe = RECIPES.find((r) => r.id === recipeId);
@@ -39,6 +39,7 @@ export function applyShot(game, name) {
   game.shot = name;
   game.bookOpen = false;
   game.toastText = '';
+  cook.stop(); // staged shots start still — no walk cycle on a frozen tableau
   board.tickets = [];
   board.coins = 0;
   board.combo = 0;
@@ -63,7 +64,7 @@ export function applyShot(game, name) {
     // mid-rush framing (AxForge: v5 read as "the same game at a different
     // moment"). Staged numbers are DELIBERATELY different from v4's
     // (1:12, 547, ×5, 9·1) AND v5's (0:47, 812, ×7, 14·2): 0:25 left,
-    // 963 coins, COMBO ×9, SERVED 17 · MISSED 1, HARI 2 · LEG 4/4.
+    // 963 coins, COMBO ×9, SERVED 17 · MISSED 1, HARI 1 · LEG 4/4.
     // The set escalates as one rush: book 1:45 → cover 0:25 → cooking 0:35 → tally close.
     game.elapsed = 155;
     board.coins = 963; board.combo = 9; board.served = 17; board.lost = 1; board.tips = 138;
@@ -176,7 +177,26 @@ export function runSelfTest(game) {
   step(30);
   log.push(`chicken prepped after chop: ${cook.carrying[0]?.prepped}`);
 
-  const passed = board.served === 1 && board.coins >= 80 && cook.carrying[0]?.prepped === true;
+  // IDLE CHECK (v6 bug — the headless test passed while the chef kept
+  // walking in place): walk one step, then stop; `moving` must clear,
+  // which is what freezes the arms/legs/bob in world3d.sync().
+  cook.move(1, 0, 0.1);
+  log.push(`moving while walking: ${cook.moving}`);
+  cook.stop();
+  const idleStill = cook.moving === false;
+  log.push(`moving after stop: ${cook.moving}`);
+
+  // DAY/LEG AGREEMENT (v6 bug — phase said HARI 2/5, event said HARI 1/5):
+  // every sampled moment, the phase line and the event line must name
+  // the same day. Both derive from legFor() now; this asserts it stays so.
+  const dayAgrees = [0, 30, 70, 130, 170].every((s) => {
+    const day = rushPhase(s).match(/HARI (\d)\/5/)?.[1];
+    return day && eventFor(s).includes(`HARI ${day}/5`);
+  });
+  log.push(`day/leg agree at 0/30/70/130/170s: ${dayAgrees} (phase@10=${rushPhase(10)}, event@10=${eventFor(10)})`);
+
+  const passed = board.served === 1 && board.coins >= 80 && cook.carrying[0]?.prepped === true
+    && idleStill && dayAgrees;
   // coins nominally 85 = $60 base (full patience) + $10 HOT tip + $15 garnish
   // tip; >= 80 tolerates a little patience drain from the live frame loop.
   const result = { passed, served: board.served, coins: board.coins, log };

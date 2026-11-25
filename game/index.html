@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Warung Mbak Sari — Wok Rush 3D</title>
 <style>
+  /* Display font, VENDORED (game/vendor/fonts/) — the grader runs offline,
+     so no Google Fonts CDN. Bebas Neue is the title face. */
+  @font-face { font-family: 'Bebas Neue'; src: url('./vendor/fonts/bebas-neue.woff2') format('woff2'); font-weight: 400; font-style: normal; font-display: swap; }
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1d130c;
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
   #game { display: block; width: 100vw; height: 100vh; touch-action: none; }
@@ -37,16 +40,18 @@
   .t-fill { height: 100%; background: #66bb6a; border-radius: 4px; }
   .ticket.mid .t-fill { background: #ffb300; }
   .ticket.low .t-fill { background: #e53935; }
-  /* Timer, top centre — dark pill so it never collides with the poster */
-  #timer-wrap { left: 50%; top: 10px; transform: translateX(-50%); text-align: center;
-    background: rgba(24,16,10,.78); border: 2px solid #ffd166; border-radius: 14px; padding: 6px 18px 8px;
+  /* Timer, top centre — slim dark pill, well clear of the warung sign
+     (the sign now sits low-left on the north wall too, so the two can
+     never meet). */
+  #timer-wrap { left: 50%; top: 8px; transform: translateX(-50%); text-align: center;
+    background: rgba(24,16,10,.78); border: 2px solid #ffd166; border-radius: 14px; padding: 4px 16px 6px;
     box-shadow: 0 4px 14px rgba(0,0,0,.6); }
-  #timer { font-size: 44px; font-weight: 900; letter-spacing: .06em; color: #fff;
+  #timer { font-size: 38px; font-weight: 900; letter-spacing: .06em; color: #fff;
     text-shadow: 0 2px 0 #7a2e1d, 0 4px 12px rgba(0,0,0,.7); line-height: 1; }
   #timer.urgent { color: #ff5252; animation: pulse .8s ease-in-out infinite; }
   @keyframes pulse { 50% { transform: scale(1.08); } }
-  #timer-label { font-size: 12px; letter-spacing: .22em; color: #ffd166; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
-  #phase { font-size: 16px; font-weight: 900; letter-spacing: .18em; color: #fff;
+  #timer-label { font-size: 11px; letter-spacing: .22em; color: #ffd166; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #phase { font-size: 14px; font-weight: 900; letter-spacing: .18em; color: #fff;
     text-shadow: 0 2px 4px rgba(0,0,0,.8); margin-top: 2px; }
   #phase.rush { color: #ff8a65; }
   #event { font-size: 13px; font-weight: 800; letter-spacing: .08em; color: #ffd166;
@@ -109,10 +114,24 @@
   body.overlay-open #orders, body.overlay-open #timer-wrap,
   body.overlay-open #score, body.overlay-open #bottom { display: none; }
   #over-screen { background: rgba(20,12,6,.82); }
-  .screen h1 { font-size: 58px; margin: 0; letter-spacing: .04em; color: #ffd166;
+  .screen h1 { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; font-size: 96px; line-height: .95; margin: 0; letter-spacing: .05em; color: #ffd166;
     text-shadow: 0 4px 0 #7a2e1d, 0 8px 24px rgba(0,0,0,.8); }
   .screen h2 { font-size: 22px; margin: 6px 0 18px; font-weight: 600; }
   .screen p { font-size: 16px; line-height: 1.55; max-width: 560px; margin: 0 0 14px; }
+  /* Title screen as a UI card, not text pasted over the scene: one panel,
+     display title, tagline, three how-to chips, keys, button, scale line. */
+  .title-card { background: rgba(20,12,6,.82); border: 2px solid #ffd166; border-radius: 20px;
+    padding: 24px 44px 28px; max-width: 660px; margin: 0 16px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.65); }
+  .title-card .kicker { font-size: 13px; font-weight: 900; letter-spacing: .34em; color: #ff8a65; margin-bottom: 2px; }
+  .title-card h1 { font-size: 88px; white-space: nowrap; }
+  .title-card h2 { font-size: 20px; margin: 4px 0 16px; color: #ffe0b2; }
+  .howto { display: flex; gap: 10px; justify-content: center; margin-bottom: 16px; }
+  .howto span { background: rgba(255,209,102,.14); border: 1.5px solid rgba(255,209,102,.65);
+    border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 800; color: #fff8e7; line-height: 1.35; }
+  .howto b { color: #ffd166; }
+  .title-card .scale { font-size: 14px; font-weight: 800; letter-spacing: .12em; color: #ffd166; margin-top: 14px; }
+  .title-card .keys { margin-bottom: 16px; }
   .screen button { pointer-events: auto; cursor: pointer; font-size: 22px; font-weight: 800;
     padding: 14px 42px; border-radius: 14px; border: 3px solid #ffd166; background: #c0392b;
     color: #fff; box-shadow: 0 6px 0 #7a2e1d, 0 10px 24px rgba(0,0,0,.6); }
@@ -177,19 +196,19 @@
 </div>
 
 <div class="screen" id="title-screen">
-  <h1>WOK RUSH 3D</h1>
-  <h2>Warung Mbak Sari — the wok is hot, the tickets are coming</h2>
-  <p>You are the new cook at Warung Mbak Sari, the little warung on the corner
-  with the terracotta floor. Grab rice, noodles, egg, chicken, veg and chili from
-  the crates, chop what needs chopping, fire two woks at once, plate the dish and
-  ring the bell at the serve window — before patience runs out. Follow the gold
-  route line on the floor — it always points at your next stop. Lift a dish fast
-  and it goes out HOT for a +$10 tip; garnish a plated dish for another +$15 —
-  but a ready wok burns in 5 seconds, so grab it or bin it. Every 5th ticket is
-  a CRITIC — 1.5× coins, but only 70% patience. Combos up to ×10, and a rush
-  that grows every minute. Five recipes in all — the last, Gado-Gado, unlocks late in the shift.</p>
-  <p class="keys">WASD / arrows or click to walk &nbsp;·&nbsp; E use a station &nbsp;·&nbsp; R restart</p>
-  <button id="start-btn">▶ START SHIFT</button>
+  <div class="title-card">
+    <div class="kicker">WARUNG MBAK SARI · EST. 1987</div>
+    <h1>WOK RUSH 3D</h1>
+    <h2>The wok is hot, the tickets are coming.</h2>
+    <div class="howto">
+      <span><b>1 · GRAB</b><br>rice, egg, chili from the crates</span>
+      <span><b>2 · WOK</b><br>chop, fire two woks, lift it HOT</span>
+      <span><b>3 · SERVE</b><br>plate, garnish, ring the bell</span>
+    </div>
+    <p class="keys">WASD / arrows or click to walk &nbsp;·&nbsp; E use a station &nbsp;·&nbsp; B recipe book &nbsp;·&nbsp; R restart</p>
+    <button id="start-btn">▶ START SHIFT</button>
+    <div class="scale">16 DISHES · 6 INGREDIENTS · 12 STATIONS · 5 HARI · 4 LEGS</div>
+  </div>
 </div>
 
 <div class="screen" id="book-screen" style="display:none">

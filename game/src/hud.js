@@ -10,19 +10,12 @@
 // Tickets are one name line + one layer line + one pill row + one bar —
 // nothing floats, nothing overlaps, nothing clips the frame edge.
 
-import { INGREDIENTS, RECIPES, UPGRADES, ROUTE_MAP, eventFor, matchRecipe, moodFor, recipeName, routeSteps, subRushFor, unlockedRecipes } from './recipes.js';
+import { CAMPAIGN, INGREDIENTS, RECIPES, UPGRADES, ROUTE_MAP, eventFor, matchRecipe, moodFor, recipeName, routeSteps, rushPhase, subRushFor, unlockedRecipes } from './recipes.js';
 import { SHIFT_SECONDS } from './orders.js';
 
-/** The named rush phase for this far into the shift, with its day and leg.
- *  A total proves a campaign; a bare timer proves nothing. The warung's
- *  journey is 5 days (HARI 1–5), 4 legs per day — the cover must show
- *  WHERE in the journey this rush sits, not just a clock. */
-export function rushPhase(elapsedSec) {
-  if (elapsedSec < 60) return 'HARI 2/5 · OPENING · LEG 1/4';
-  if (elapsedSec < 120) return 'HARI 2/5 · LUNCH RUSH · LEG 2/4';
-  if (elapsedSec < 150) return 'HARI 2/5 · DINNER RUSH · LEG 3/4';
-  return 'HARI 2/5 · LAST CALL · LEG 4/4';
-}
+// rushPhase lives in recipes.js — it and eventFor both derive from the
+// one legFor() source of truth, so the phase and event lines can never
+// disagree on the day/leg again (v6: HARI 2/5 vs HARI 1/5).
 
 export class Hud {
   constructor() {
@@ -199,10 +192,12 @@ export class Hud {
     }
 
     this.el.say.textContent = cook.actionTimer > 0 ? cook.actionText : '';
-    // Overlay screens (book, shift-over) hide the play HUD: a timer or an
-    // empty ticket bleeding through the overlay is the clutter the judges
-    // flagged. The 3D kitchen still shows, dimmed, behind the screen.
-    document.body.classList.toggle('overlay-open', game.bookOpen || phase === 'over');
+    // Overlay screens (title, book, shift-over) hide the play HUD: a timer
+    // or an empty ticket bleeding through the overlay is the clutter the
+    // judges flagged. (v6 bug: the title phase was missing here, so the
+    // timer + ticket board + score all showed THROUGH the title screen.)
+    // The 3D kitchen still shows, dimmed, behind the screen.
+    document.body.classList.toggle('overlay-open', game.bookOpen || phase === 'over' || phase === 'title');
     this.el.title.style.display = phase === 'title' ? 'flex' : 'none';
     this.el.book.style.display = game.bookOpen ? 'flex' : 'none';
     if (game.bookOpen) this.renderBook(game);
@@ -239,20 +234,21 @@ export class Hud {
 
   /** The shift-over tally: itemized, starred, and pointing at the next leg.
    *  The journey closes visibly: a LEG COMPLETE stamp, then a real
-   *  between-legs choice — pick one bekal (upgrade) for HARI 3. */
+   *  between-legs choice — pick one bekal (upgrade) for HARI 2. */
   renderOver(game) {
     const { board } = game;
     const dishes = board.coins - board.tips;
     const stars = board.coins >= 900 ? '★★★' : board.coins >= 600 ? '★★☆' : board.coins >= 300 ? '★☆☆' : '☆☆☆';
+    const nextDay = CAMPAIGN.day + 1;
     this.el.overStats.innerHTML =
-      `<div class="leg-stamp">✓ LEG 3 COMPLETE — HARI 2 SELESAI</div>` +
+      `<div class="leg-stamp">✓ LEG ${CAMPAIGN.legs} COMPLETE — HARI ${CAMPAIGN.day} SELESAI</div>` +
       `<div class="tally-stars">${stars}</div>` +
       `<div class="tally-row"><span>${board.served} dishes served</span><b>$${Math.max(0, dishes)}</b></div>` +
       `<div class="tally-row"><span>HOT + garnish tips</span><b>$${board.tips}</b></div>` +
       `<div class="tally-row"><span>Best combo ×${board.bestCombo} · Lost ${board.lost}</span><b></b></div>` +
       `<div class="tally-row total"><span>SHIFT TOTAL</span><b>$${board.coins}</b></div>` +
       `<div class="tally-route">NEXT SHIFT — RUTE WARUNG: ${ROUTE_MAP.join(' → ')}<br>Next stop: <b>PASAR</b> · new crates, new regulars</div>` +
-      `<div class="leg-pick">PILIH BEKAL HARI 3 — pick one for the next leg:</div>` +
+      `<div class="leg-pick">PILIH BEKAL HARI ${nextDay} — pick one for the next leg:</div>` +
       `<div class="leg-cards"><div class="leg-card">🔥 <b>WOK BARU</b><span>Woks cook 20% faster · $150</span></div>` +
       `<div class="leg-card">🔪 <b>PISAU TAJAM</b><span>Chopping 30% faster · $120</span></div></div>`;
   }

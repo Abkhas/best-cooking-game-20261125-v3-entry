@@ -89,7 +89,7 @@ function floorTexture() {
   const tex = new THREE.CanvasTexture(cv);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(8, 7.2);
+  tex.repeat.set(17, 14); // tile size ~0.53, same as the old 16.6-wide floor
   return tex;
 }
 
@@ -340,7 +340,7 @@ export class World3D {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x2a1608);
     this.scene.fog = new THREE.Fog(0x2a1608, 24, 38);
-    this.camera = new THREE.PerspectiveCamera(50, 1280 / 800, 0.1, 100);
+    this.camera = new THREE.PerspectiveCamera(54, 1280 / 800, 0.1, 100);
     this.camera.position.set(0, 10, 9);
     this.camera.lookAt(0, 0, -1);
 
@@ -425,9 +425,11 @@ export class World3D {
   buildRoom() {
     const g = this.scene;
     // Floor runs past the south rail toward the camera, so the frame bottom
-    // is checkered floor, never a black void.
+    // is checkered floor, never a black void — and the floor is WIDE (36×30,
+    // v6 was 16.6×15), so no empty brown background shows at the frame
+    // edges at any camera angle or aspect ratio.
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(16.6, 15),
+      new THREE.PlaneGeometry(36, 30),
       new THREE.MeshLambertMaterial({ map: floorTexture() }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -437,6 +439,9 @@ export class World3D {
     g.add(floor);
 
     // Walls: cream with a green dado, north wall carries the menu poster.
+    // Walls run 5.0 high (v6: 3.4) — at the closer v7 cameras the old
+    // wall tops left empty brown background triangles at the frame's top
+    // corners; now the walls fill the frame edge-to-edge.
     const wallMat = mat(WALL_CREAM);
     const dadoMat = mat(WALL_GREEN);
     const mkWall = (w, h, x, y, z, ry) => {
@@ -445,8 +450,8 @@ export class World3D {
       const d = new THREE.Mesh(new THREE.BoxGeometry(w, 1.1, 0.34), dadoMat);
       d.position.set(x, 0.55, z); d.rotation.y = ry; g.add(d);
     };
-    mkWall(16.6, 3.4, 0, 1.7, -5.15, 0);
-    mkWall(10.6, 3.4, -8.15, 1.7, 0, Math.PI / 2);
+    mkWall(16.6, 5.0, 0, 2.5, -5.15, 0);
+    mkWall(10.6, 5.0, -8.15, 2.5, 0, Math.PI / 2);
     // South side is a LOW rail, not a wall: the camera looks over it, so the
     // frame bottom is kitchen floor and tables, never a blank beige band.
     box(16.6, 0.45, 0.22, WOOD_DARK, 0, 0.22, 5.15, g);
@@ -461,10 +466,10 @@ export class World3D {
         d.position.set(8.15, 0.55, (z0 + z1) / 2); g.add(d);
       }
     };
-    eastSeg(-5.3, 0.8, 0, 3.4);
-    eastSeg(3.8, 5.3, 0, 3.4);
+    eastSeg(-5.3, 0.8, 0, 5.0);
+    eastSeg(3.8, 5.3, 0, 5.0);
     eastSeg(0.8, 3.8, 0, 1.1); // sill
-    eastSeg(0.8, 3.8, 2.7, 3.4); // lintel
+    eastSeg(0.8, 3.8, 2.7, 5.0); // lintel — full height, no brown over the window
     // Sunset backdrop outside the window + a dark wood frame around it.
     const sunset = new THREE.Mesh(
       new THREE.PlaneGeometry(7.5, 4.6),
@@ -572,7 +577,7 @@ export class World3D {
       new THREE.PlaneGeometry(16.6, 0.7),
       new THREE.MeshLambertMaterial({ map: batikTexture() }),
     );
-    valance.position.set(0, 3.05, -4.98);
+    valance.position.set(0, 4.55, -4.98);
     valance.userData.noShadow = true;
     g.add(valance);
 
@@ -587,9 +592,55 @@ export class World3D {
         toneMapped: false,
       }),
     );
-    poster.position.set(-1.5, 2.0, -4.98);
+    poster.position.set(-2.6, 1.62, -4.98); // LOW + LEFT: v6 had it high/centred, under the timer panel
     poster.userData.noShadow = true;
     g.add(poster);
+
+    // The north wall above the poster was blank cream once the walls went
+    // 5.0 high — fill it: a MENU board on the right, dried-chili strings
+    // flanking the poster. The wall reads as a warung, not a void.
+    const menu = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.6, 1.7),
+      new THREE.MeshBasicMaterial({
+        map: textTexture([
+          { text: 'MENU HARI INI', size: 58, color: '#ffd166' },
+          { text: 'NASI GORENG 60 · MIE GORENG 70', size: 34 },
+          { text: 'AYAM GEPREK 90 · SOTO AYAM 100', size: 34 },
+          { text: 'GADO-GADO 80 · SOTO MIE 90', size: 34 },
+        ], { w: 768, h: 360, bg: '#5d2a1a', border: '#ffd166' }),
+        toneMapped: false,
+      }),
+    );
+    menu.position.set(4.3, 1.85, -4.98); // left edge 2.5 clears the x=2 lamp shade
+    menu.userData.noShadow = true;
+    g.add(menu);
+    for (const cx of [-5.9, 6.4]) {
+      cyl(0.015, 0.015, 0.95, 0x8d6e3f, cx, 2.55, -4.9, g, 6);
+      for (let i = 0; i < 5; i++) {
+        const chili = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.26, 8), mat(0xe53935));
+        chili.position.set(cx + (i % 2 ? 0.09 : -0.09), 2.95 - i * 0.19, -4.88);
+        chili.rotation.z = Math.PI;
+        g.add(chili);
+      }
+    }
+
+    // West wall dressing: the chase camera looks straight at this face
+    // when the chef works the crates, and bare cream read as a blank
+    // beige void. A batik band high up + a shelf of jars at eye level.
+    const westBatik = new THREE.Mesh(
+      new THREE.PlaneGeometry(4.8, 1.4),
+      new THREE.MeshLambertMaterial({ map: batikTexture() }),
+    );
+    westBatik.rotation.y = Math.PI / 2;
+    westBatik.position.set(-7.97, 2.85, 0);
+    westBatik.userData.noShadow = true;
+    g.add(westBatik);
+    box(0.35, 0.06, 5.0, WOOD_DARK, -7.9, 1.55, 0, g);
+    const jarColors = [0xc0392b, 0x2e7d5b, 0xe8c98a, 0xef6c00, 0x5d4037];
+    jarColors.forEach((c, i) => {
+      cyl(0.15, 0.17, 0.42, c, -7.9, 1.79, -2 + i, g, 10);
+      cyl(0.16, 0.16, 0.05, 0x3d2b1f, -7.9, 2.02, -2 + i, g, 10);
+    });
 
     // Hanging lamps over the counter run — each one POOLS light on the
     // counter below it (spotlight + a visible warm pool), never just decor.
@@ -672,14 +723,13 @@ export class World3D {
         heap.add(piece);
       }
       g.add(heap);
-      // Crate labels sit toward the room (east), clear of the left frame edge:
-      // the ticket column covers the first ~236px, so labels live well east
-      // of the crates — v4's NOODLE pill was cut behind the tickets.
-      // Southern crates sit low in frame, so their labels ride higher AND
-      // further east — otherwise VEG/CHILI pills are cut at the left edge
-      // (v5 nit, still visible in the v6 cover/cooking first shoot).
+      // Crate labels sit right above their own crate (x +1.15, y 1.5) —
+      // anchored to the object, not floating mid-floor in a detached
+      // column (v6: labels rode +2.4 east and read as pills over nothing).
+      // The ticket column covers the first ~236px, and the labels still
+      // clear it: the crates are at x -7.3, the labels at x -6.15.
       const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.65);
-      lab.position.set(s.x + 2.4 + Math.max(0, s.z - 0.5) * 0.55, 1.95 + Math.max(0, s.z - 0.5) * 0.25, s.z);
+      lab.position.set(s.x + 1.15, 1.5, s.z);
       g.add(lab);
     } else if (s.kind === 'board') {
       box(1.5, 0.07, 0.9, 0xe8c98a, s.x, y + 0.04, s.z, g);
@@ -1009,11 +1059,37 @@ export class World3D {
   buildChef() {
     const g = new THREE.Group();
     g.scale.setScalar(1.2); // the chef is the hero — BIG, mid-task, in frame
+    // v7 remodel (feasible without a full rebuild): real legs + shoes under
+    // the apron, a red neckerchief, apron pocket + buttons, eyebrows and a
+    // smile — so the chef reads as a character, not a plain low-poly figure.
+    // Legs: dark trousers, pivoted at the hip so they swing while walking
+    // and stand together at rest. Shoes: black, pointing forward (+z).
+    const legL = cyl(0.11, 0.09, 0.55, 0x2b3a55, -0.16, 0.28, 0, g, 8);
+    const legR = cyl(0.11, 0.09, 0.55, 0x2b3a55, 0.16, 0.28, 0, g, 8);
+    legL.geometry.translate(0, 0.27, 0); legL.position.y = 0.0;
+    legR.geometry.translate(0, 0.27, 0); legR.position.y = 0.0;
+    legL.name = 'legL'; legR.name = 'legR';
+    // Shoes ride ON the legs (children of the leg pivot) so they swing
+    // with the step instead of staying planted while the leg moves.
+    const shoeL = box(0.16, 0.09, 0.3, 0x1a1a1a, 0, 0.045, 0.06, legL);
+    const shoeR = box(0.16, 0.09, 0.3, 0x1a1a1a, 0, 0.045, 0.06, legR);
+    shoeL.name = 'shoeL'; shoeR.name = 'shoeR';
     // Apron body, shirt arms, head, and the tall white chef hat.
     const body = cyl(0.34, 0.42, 0.85, 0xf5f5f5, 0, 0.95, 0, g, 14);
     body.name = 'body';
     const apron = box(0.5, 0.6, 0.06, 0xc0392b, 0, 0.85, 0.38, g);
     apron.name = 'apron';
+    // Apron pocket + buttons: the detail that makes the whites read as a uniform.
+    box(0.2, 0.14, 0.02, 0xa93226, -0.1, 0.62, 0.42, g);
+    for (const by of [1.05, 1.2]) {
+      const btn = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 6), mat(0x2b2b2b));
+      btn.position.set(0.12, by, 0.42); g.add(btn);
+    }
+    // Red neckerchief at the collar.
+    const scarf = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.22, 4), mat(0xc0392b));
+    scarf.position.set(0, 1.42, 0.3);
+    scarf.rotation.x = 0.5; scarf.rotation.y = Math.PI / 4;
+    g.add(scarf);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.28, 16, 12), mat(0xf2c89b));
     head.position.set(0, 1.62, 0);
     head.name = 'head';
@@ -1028,7 +1104,19 @@ export class World3D {
       const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), mat(0x1a1a1a));
       eye.position.set(sx, 1.66, 0.25);
       g.add(eye);
+      // Eyebrows above the eyes — the face reads as a person, not a doll.
+      const brow = box(0.11, 0.025, 0.02, 0x3d2b1f, sx, 1.74, 0.25, g);
+      brow.rotation.z = sx < 0 ? 0.15 : -0.15;
     }
+    // Smile: a thin dark torus arc on the face.
+    const smile = new THREE.Mesh(
+      new THREE.TorusGeometry(0.07, 0.012, 6, 12, Math.PI * 0.7),
+      mat(0x7a2e1d),
+    );
+    smile.position.set(0, 1.56, 0.26);
+    smile.rotation.z = Math.PI + (Math.PI - Math.PI * 0.7) / 2;
+    smile.rotation.x = 0.15;
+    g.add(smile);
     // Arms swing while walking; a tray of carried items floats in front.
     const armL = cyl(0.09, 0.09, 0.55, 0xf5f5f5, -0.42, 1.05, 0.1, g, 8);
     const armR = cyl(0.09, 0.09, 0.55, 0xf5f5f5, 0.42, 1.05, 0.1, g, 8);
@@ -1073,7 +1161,7 @@ export class World3D {
     this.carryDish = carryDish;
     this.carryDishMound = cdMound;
     this.chef = g;
-    this.chefParts = { armL, armR, body };
+    this.chefParts = { armL, armR, body, legL, legR };
     this.scene.add(g);
     this.trayAnchor = new THREE.Group();
     this.trayAnchor.position.set(0, 1.14, 0.48);
@@ -1085,13 +1173,21 @@ export class World3D {
     const { cook } = game;
     // The hatch queue exists only in the cover establishing shot.
     if (this.coverQueue) this.coverQueue.visible = game.shot === 'cover';
-    // Chef position, heading and walk bob.
+    // Chef position, heading and walk cycle. IDLE IS STILL: when
+    // cook.moving is false the bob is 0, the arms rest at 0.15 holding
+    // the tray, and the legs stand together at rotation 0 — no limb
+    // moves at all. (v6: `moving` stuck true, so the walk cycle ran
+    // while the chef stood still.) While walking, arms and legs swing
+    // in opposition and the body bobs.
     this.chef.position.set(cook.x, 0, cook.z);
     this.chef.rotation.y = cook.heading;
-    const bob = cook.moving ? Math.sin(time * 11) * 0.06 : 0;
+    const walkPhase = Math.sin(time * 11);
+    const bob = cook.moving ? walkPhase * 0.06 : 0;
     this.chef.position.y = Math.abs(bob);
-    this.chefParts.armL.rotation.x = cook.moving ? Math.sin(time * 11) * 0.7 : 0.15;
-    this.chefParts.armR.rotation.x = cook.moving ? -Math.sin(time * 11) * 0.7 : 0.15;
+    this.chefParts.armL.rotation.x = cook.moving ? walkPhase * 0.7 : 0.15;
+    this.chefParts.armR.rotation.x = cook.moving ? -walkPhase * 0.7 : 0.15;
+    this.chefParts.legL.rotation.x = cook.moving ? -walkPhase * 0.55 : 0;
+    this.chefParts.legR.rotation.x = cook.moving ? walkPhase * 0.55 : 0;
 
     // Gold dashed route line on the floor: chef → every stop on the plan,
     // in order, with a waypoint dot on each stop.
@@ -1280,18 +1376,22 @@ export class World3D {
    *  moment". Live play keeps the chase camera. */
   followCamera(cook, shot) {
     if (shot === 'cover') {
-      this.camera.position.set(-6.5, 11.0, 11.5);
+      // Wide establishing shot — closer than v6 (was -6.5, 11, 11.5):
+      // the warung fills the frame, no brown border.
+      this.camera.position.set(-5.5, 9.5, 10.0);
       this.camera.lookAt(2.0, 0, -2.5);
       return;
     }
     if (shot) {
-      this.camera.position.set(-1.2, 8.6, 9.2);
+      this.camera.position.set(-1.2, 7.6, 8.0);
       this.camera.lookAt(2.8, 0.2, -2.2);
       return;
     }
+    // Live chase camera — closer and lower than v6 (was y 10.5, z 8.5):
+    // the kitchen fills the frame at every aspect ratio.
     const tx = cook.x * 0.55;
     const tz = cook.z * 0.45 - 1.2;
-    this.camera.position.set(tx, 10.5, 8.5);
+    this.camera.position.set(tx, 8.8, 7.0);
     this.camera.lookAt(tx * 0.9, 0, tz - 0.6);
   }
 

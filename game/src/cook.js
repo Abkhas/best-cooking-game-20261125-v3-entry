@@ -52,6 +52,14 @@ export class Cook {
     this.move(dx, dz, dt);
   }
 
+  /** Fully stopped: no input, no click target. The walk cycle MUST end
+   *  here — v6's idle bug was that nothing ever cleared `moving` once
+   *  the keys were released, so the legs and arms kept walking forever.
+   *  Called every frame the cook has no movement input (main.js). */
+  stop() {
+    this.moving = false;
+  }
+
   say(text, seconds = 1.6) {
     this.actionText = text;
     this.actionTimer = seconds;

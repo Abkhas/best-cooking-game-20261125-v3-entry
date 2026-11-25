@@ -119,13 +119,40 @@ export function moodFor(share) {
   return 'MARAH!';
 }
 
-/** The named event running this far into the shift — one per leg, with a
- *  course counter while it lasts. */
+/** SINGLE SOURCE OF TRUTH for the campaign clock. Every displayed
+ *  day/leg number — the phase line, the event line, the tally screen,
+ *  the shot prompts — derives from legFor() below. Nothing hardcodes
+ *  a day or leg anywhere else. (v6 bug: rushPhase said HARI 2/5 while
+ *  eventFor said HARI 1/5 — two hardcoded strings that disagreed.)
+ *  This shift is HARI 1 of 5; the 3-minute shift runs LEG 1–4. */
+export const CAMPAIGN = { day: 1, totalDays: 5, legs: 4 };
+const LEGS = [
+  { phase: 'OPENING', event: 'BUKA WARUNG' },
+  { phase: 'LUNCH RUSH', event: '★ KENDURI — COURSE 2/3 · 3 PLATES TO GO' },
+  { phase: 'DINNER RUSH', event: '★ ARISAN NIGHT · COURSE 3/3' },
+  { phase: 'LAST CALL', event: 'LAST CALL' },
+];
+const LEG_BOUNDS = [60, 120, 150, 180];
+
+/** Which leg of the campaign this far into the shift is. */
+export function legFor(elapsedSec) {
+  const leg = LEG_BOUNDS.findIndex((b) => elapsedSec < b) + 1;
+  const n = leg === 0 ? CAMPAIGN.legs : leg;
+  const d = CAMPAIGN.day;
+  return { day: d, leg: n, totalDays: CAMPAIGN.totalDays, legs: CAMPAIGN.legs,
+    phase: LEGS[n - 1].phase, event: LEGS[n - 1].event };
+}
+
+/** The phase line: "HARI 1/5 · OPENING · LEG 1/4". */
+export function rushPhase(elapsedSec) {
+  const l = legFor(elapsedSec);
+  return `HARI ${l.day}/${l.totalDays} · ${l.phase} · LEG ${l.leg}/${l.legs}`;
+}
+
+/** The event line: "BUKA WARUNG · HARI 1/5" — same day as the phase line. */
 export function eventFor(elapsedSec) {
-  if (elapsedSec < 60) return 'BUKA WARUNG · HARI 1/5';
-  if (elapsedSec < 120) return '★ KENDURI — COURSE 2/3 · 3 PLATES TO GO';
-  if (elapsedSec < 150) return '★ ARISAN NIGHT · COURSE 3/3';
-  return 'LAST CALL · HARI 2/5';
+  const l = legFor(elapsedSec);
+  return `${l.event} · HARI ${l.day}/${l.totalDays}`;
 }
 
 /** The sub-rush inside the rush: a short timer that lives inside the leg,
