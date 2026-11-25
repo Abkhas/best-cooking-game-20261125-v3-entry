@@ -282,11 +282,15 @@ function buildDishGroup(recipeId, garnished) {
     eggWhite(0.14, 0.1); // fried egg, white + yolk, on top
     const chili = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.24, 8), mat(0xe53935));
     chili.rotation.z = Math.PI / 2; add(chili, -0.18, 0.26, -0.08);
+    const krupuk = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.02, 16), mat(0xffe0ec));
+    krupuk.rotation.set(0.5, 0, 0.9); add(krupuk, -0.05, 0.32, 0.18); // pink krupuk leaning on the rice
     bits = garnishBits();
   } else if (recipeId === 'mie-goreng') {
     const nest = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.11, 8, 16), mat(0xffb347));
     nest.rotation.x = Math.PI / 2; add(nest, 0, 0.18, 0); // noodle nest
     eggWhite(0, 0.05);
+    const krupuk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 16), mat(0xffe0ec));
+    krupuk.rotation.set(0.5, 0, -0.9); add(krupuk, 0.18, 0.3, 0.16); // krupuk on the noodles
     bits = garnishBits(7); // green scallion over the noodles
   } else if (recipeId === 'ayam-geprek') {
     add(mound(0xfff3d6), -0.08, 0.15, 0.05); // rice
@@ -296,6 +300,8 @@ function buildDishGroup(recipeId, garnished) {
     }
     const sambal = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), mat(0xc62828));
     sambal.scale.y = 0.5; add(sambal, 0.2, 0.28, 0.02); // sambal dollop
+    const krupuk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 16), mat(0xffe0ec));
+    krupuk.rotation.set(0.5, 0, 0.9); add(krupuk, -0.2, 0.3, 0.18); // krupuk beside the chicken
     bits = garnishBits(4);
   } else if (recipeId === 'soto-ayam') {
     const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.26, 0.16, 18), mat(0x2e7d5b));
@@ -511,6 +517,48 @@ export class World3D {
     sunDisc.position.set(9.45, 2.45, 1.5);
     sunDisc.userData.noShadow = true;
     g.add(sunDisc);
+    // The street, made unmistakable: a passer-by with a basket, a neighbour's
+    // food stall with a red awning, and the street-name sign — all just
+    // outside the east window, big enough to read through it at a glance.
+    const passer = new THREE.Group();
+    const pBody = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.65, 10), mat(0x00897b));
+    pBody.position.y = 0.62; passer.add(pBody);
+    const pHead = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), mat(0xf2c89b));
+    pHead.position.y = 1.12; passer.add(pHead);
+    const pHat = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.22, 12), mat(0xe8c98a));
+    pHat.position.y = 1.32; passer.add(pHat);
+    const pBasket = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.22), mat(0x8d6e3f));
+    pBasket.position.set(0.32, 0.75, 0); passer.add(pBasket);
+    passer.position.set(8.9, 0, 1.5);
+    passer.traverse((o) => { o.userData.noShadow = true; });
+    g.add(passer);
+    const stall = new THREE.Group();
+    const sCart = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.6, 1.1), mat(0x6b4226));
+    sCart.position.y = 0.55; stall.add(sCart);
+    const sTop = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 1.2), mat(0xd9c1a3));
+    sTop.position.y = 0.88; stall.add(sTop);
+    const sPot = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.2, 12), mat(0x37474f));
+    sPot.position.set(0, 1.0, -0.3); stall.add(sPot);
+    const sAwning = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 1.4), mat(0xc0392b));
+    sAwning.position.y = 1.65; sAwning.rotation.z = 0.18; stall.add(sAwning);
+    for (const px of [-0.4, 0.4]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.8, 6), mat(0x3d2b1f));
+      pole.position.set(px, 1.25, 0.55); stall.add(pole);
+    }
+    stall.position.set(9.0, 0, 2.8);
+    stall.traverse((o) => { o.userData.noShadow = true; });
+    g.add(stall);
+    const streetSign = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.2, 0.55),
+      new THREE.MeshBasicMaterial({
+        map: textTexture([{ text: 'GANG MAWAR', size: 64, color: '#ffd166' }], { w: 512, h: 128, bg: '#7a2e1d', border: '#ffd166' }),
+        toneMapped: false,
+      }),
+    );
+    streetSign.rotation.y = -Math.PI / 2;
+    streetSign.position.set(8.65, 2.3, 1.4);
+    streetSign.userData.noShadow = true;
+    g.add(streetSign);
     for (const [w, h, x, y, z] of [
       [0.16, 0.18, 8.15, 2.79, 2.3], [0.16, 0.18, 8.15, 1.01, 2.3],
       [0.16, 1.96, 8.15, 1.9, 0.72], [0.16, 1.96, 8.15, 1.9, 3.88],
@@ -623,9 +671,13 @@ export class World3D {
         heap.add(piece);
       }
       g.add(heap);
-      // Crate labels sit toward the room (east), clear of the left frame edge.
-      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.85);
-      lab.position.set(s.x + 1.05, 1.7, s.z);
+      // Crate labels sit toward the room (east), clear of the left frame edge:
+      // the ticket column covers the first ~236px, so labels live well east
+      // of the crates — v4's NOODLE pill was cut behind the tickets.
+      // Southern crates sit low in frame, so their labels ride higher —
+      // otherwise CHILI's pill is cut at the bottom edge.
+      const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.65);
+      lab.position.set(s.x + 2.4 + Math.max(0, s.z - 2.2) * 0.5, 1.95 + Math.max(0, s.z - 0.5) * 0.25, s.z);
       g.add(lab);
     } else if (s.kind === 'board') {
       box(1.5, 0.07, 0.9, 0xe8c98a, s.x, y + 0.04, s.z, g);
@@ -727,11 +779,13 @@ export class World3D {
       food.visible = false;
       g.add(food);
       this.plateFood = food;
-      // A floating callout appears the moment a dish is plated.
-      const ready = labelSprite('READY TO SERVE', 'take it to the window — E', 1.0);
-      ready.position.set(s.x, 2.3, -3.35);
-      ready.visible = false;
-      g.add(ready);
+      // A floating callout appears the moment a dish is plated — live text:
+      // the dish, its 3/3 layers and its price, the progress ring on the plate.
+      const ready = dynamicLabel();
+      ready.sprite.scale.set(2.1, 0.66, 1);
+      ready.sprite.position.set(s.x, 2.3, -3.35);
+      ready.sprite.visible = false;
+      g.add(ready.sprite);
       this.plateReady = ready;
       const lab = labelSprite('PLATE', 'E to plate · garnish +$15', 1.0);
       lab.position.set(s.x, 1.55, -3.35);
@@ -962,8 +1016,18 @@ export class World3D {
     const cdGreen = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 0.08), mat(0x43a047));
     cdGreen.position.set(-0.08, 0.15, -0.05);
     carryDish.add(cdGreen);
+    // Krupuk + chili on the carried plate too: rice + egg + chili + krupuk
+    // as distinct shapes, not one disc.
+    const cdKrupuk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.02, 16), mat(0xffe0ec));
+    cdKrupuk.rotation.set(0.4, 0, 0.8);
+    cdKrupuk.position.set(-0.1, 0.16, 0.14);
+    carryDish.add(cdKrupuk);
+    const cdChili = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.2, 8), mat(0xe53935));
+    cdChili.rotation.z = Math.PI / 2;
+    cdChili.position.set(-0.13, 0.14, -0.1);
+    carryDish.add(cdChili);
     carryDish.position.set(0, 1.08, 0.48);
-    carryDish.scale.setScalar(1.35); // the finished plate reads BIG in frame
+    carryDish.scale.setScalar(1.75); // the finished plate reads BIG in frame
     carryDish.visible = false;
     g.add(carryDish);
     this.carryDish = carryDish;
@@ -1126,7 +1190,7 @@ export class World3D {
       if (cook.plate) {
         const dish = buildDishGroup(cook.plate, cook.plateGarnished);
         dish.position.set(0, 0, 0);
-        dish.scale.setScalar(1.15); // the plated dish reads BIG in frame
+        dish.scale.setScalar(1.5); // the plated dish reads BIG in frame
         this.plateFood.add(dish);
         this.plateDish = dish;
       } else {
@@ -1134,10 +1198,14 @@ export class World3D {
       }
     }
     this.plateFood.visible = cook.plate !== null;
-    if (this.plateReady) this.plateReady.visible = cook.plate !== null;
+    if (this.plateReady) {
+      const r = cook.plate ? RECIPES.find((x) => x.id === cook.plate) : null;
+      if (r) this.plateReady.setText('READY TO SERVE', `${r.name} · 3/3 LAYERS · +$${r.price}`);
+      this.plateReady.sprite.visible = cook.plate !== null;
+    }
     // The PLATE label steps aside while the READY callout shows.
     const plateLab = this.stationLabels['plate'];
-    if (plateLab) plateLab.visible = !this.plateReady.visible;
+    if (plateLab) plateLab.visible = !this.plateReady.sprite.visible;
 
     // Chopping: knife bits dance on the board while a chop runs.
     const board = { x: -4.9, z: -4.2 };
@@ -1162,11 +1230,13 @@ export class World3D {
 
   /** Shot discipline: ONE strong camera for all four staged shots — the set
    *  reads as one game getting busier (timer down, streak up, orders up),
-   *  not four different angles. Live play keeps the chase camera. */
+   *  not four different angles. Live play keeps the chase camera. The staged
+   *  camera yaws ~15° toward the east wall so the street outside the window
+   *  (passer-by, stall, GANG MAWAR sign) is in frame, not off the right edge. */
   followCamera(cook, shot) {
     if (shot) {
-      this.camera.position.set(0, 9.2, 8.8);
-      this.camera.lookAt(0, 0, -2.6);
+      this.camera.position.set(-1.2, 8.6, 9.2);
+      this.camera.lookAt(2.8, 0.2, -2.2);
       return;
     }
     const tx = cook.x * 0.55;

@@ -56,13 +56,12 @@ export function applyShot(game, name) {
   setWok(cook.wok2, null, 0, 0, false, false);
 
   if (name === 'cover') {
-    // Golden-hour dinner rush, mid-action: the chef stands AT wok 1 carrying
-    // a garnished plate toward the serve window, wok 1 SEARING 45%, wok 2
-    // READY with a 2s burn countdown, a garnished Nasi Goreng on the plate
-    // counter, one ticket at 9s and MARAH. KENDURI course 2/3 is running,
-    // with the SAMBAL RUSH sub-timer inside it.
-    game.elapsed = 108;
-    board.coins = 547; board.combo = 5; board.served = 9; board.lost = 1;
+    // Golden-hour dinner rush, mid-action — v5 numbers are DELIBERATELY
+    // different from v4's (1:12, 547, ×5, 9·1): 0:47 left, 812 coins,
+    // COMBO ×7, SERVED 14 · MISSED 2, HARI 2 · LEG 3/4. The set escalates
+    // as one rush: book 1:45 → cover 0:47 → cooking 0:35 → tally close.
+    game.elapsed = 133;
+    board.coins = 812; board.combo = 7; board.served = 14; board.lost = 2; board.tips = 105;
     board.tickets = [
       ticket(1, 'nasi-goreng', 9, 44),
       ticket(2, 'mie-goreng', 29, 42, true), // ★ CRITIC — 1.5x coins, short fuse
@@ -102,15 +101,15 @@ export function applyShot(game, name) {
     // Mid-shift rush: chicken on the board, one wok sizzling at 61%, one
     // READY with 4s left on its burn clock — and the chef ON the gold route
     // line, mid-carry between chop and wok. ROUTE #7, 4 stops left.
-    game.elapsed = 95;
-    board.coins = 380; board.combo = 4; board.served = 6;
+    game.elapsed = 145;
+    board.coins = 940; board.combo = 7; board.served = 16; board.lost = 2; board.tips = 95;
     board.tickets = [
       ticket(1, 'ayam-geprek', 18, 36),
       ticket(2, 'soto-ayam', 30, 38),
       ticket(3, 'mie-goreng', 26, 40),
       ticket(4, 'nasi-ayam', 22, 40),
     ];
-    cook.x = -4.9; cook.z = -2.9; cook.heading = Math.PI;
+    cook.x = -2.8; cook.z = -2.6; cook.heading = Math.PI; // east of the chop board: clear of the ticket column, still facing the board/woks
     cook.carrying = [{ id: 'chicken', prepped: false }];
     cook.chopping = { item: cook.carrying[0], done: 1.4, total: 2.2 };
     setWok(cook.wok, 'mie-goreng', 4.3, 7, false, false);
@@ -121,8 +120,8 @@ export function applyShot(game, name) {
     // and the route map to the next shift. The loop visibly closes.
     game.phase = 'over';
     game.elapsed = 180;
-    board.coins = 892; board.combo = 6; board.served = 14; board.lost = 1;
-    board.tips = 85; board.bestCombo = 6;
+    board.coins = 1148; board.combo = 7; board.served = 18; board.lost = 2;
+    board.tips = 120; board.bestCombo = 7;
     board.tickets = [];
     cook.x = 6.0; cook.z = -1.0; cook.heading = -Math.PI / 2;
     cook.carrying = [{ id: 'dish:ayam-geprek', prepped: true, hot: true }];

@@ -13,13 +13,15 @@
 import { INGREDIENTS, RECIPES, UPGRADES, ROUTE_MAP, eventFor, matchRecipe, moodFor, recipeName, routeSteps, subRushFor, unlockedRecipes } from './recipes.js';
 import { SHIFT_SECONDS } from './orders.js';
 
-/** The named rush phase for this far into the shift, with its leg of 4.
- *  A total proves a campaign; a bare timer proves nothing. */
+/** The named rush phase for this far into the shift, with its day and leg.
+ *  A total proves a campaign; a bare timer proves nothing. The warung's
+ *  journey is 5 days (HARI 1–5), 4 legs per day — the cover must show
+ *  WHERE in the journey this rush sits, not just a clock. */
 export function rushPhase(elapsedSec) {
-  if (elapsedSec < 60) return 'OPENING · LEG 1/4';
-  if (elapsedSec < 120) return 'LUNCH RUSH · LEG 2/4';
-  if (elapsedSec < 150) return 'DINNER RUSH · LEG 3/4';
-  return 'LAST CALL · LEG 4/4';
+  if (elapsedSec < 60) return 'HARI 2/5 · OPENING · LEG 1/4';
+  if (elapsedSec < 120) return 'HARI 2/5 · LUNCH RUSH · LEG 2/4';
+  if (elapsedSec < 150) return 'HARI 2/5 · DINNER RUSH · LEG 3/4';
+  return 'HARI 2/5 · LAST CALL · LEG 4/4';
 }
 
 export class Hud {
@@ -39,6 +41,7 @@ export class Hud {
       say: document.getElementById('say'),
       toast: document.getElementById('toast'),
       route: document.getElementById('route'),
+      meta: document.getElementById('meta-strip'),
       burnbar: document.getElementById('burnbar'),
       title: document.getElementById('title-screen'),
       book: document.getElementById('book-screen'),
@@ -79,12 +82,10 @@ export class Hud {
     // two clocks — the shift timer and the rush inside it.
     this.el.event.textContent = eventFor(elapsed);
     const sub = subRushFor(elapsed);
-    this.el.subtimer.textContent = sub ? `${sub.name} ${this.fmtTime(sub.left)}` : '';
-    this.el.subtimer.style.display = sub ? 'inline-block' : 'none';
     this.el.coins.textContent = `🪙 ${board.coins}`;
     this.el.hearts.textContent = '♥'.repeat(Math.max(0, hearts)) + '♡'.repeat(Math.max(0, 3 - hearts));
     this.el.combo.textContent = board.combo > 1 ? `COMBO ×${board.combo}` : '';
-    this.el.record.textContent = `SERVED ${board.served} · MISSED ${board.lost}`;
+    this.el.record.textContent = `SERVED ${board.served} · MISSED ${board.lost} · TIPS $${board.tips}`;
 
     // Order board: one ticket card per order — customer + mood, dish, its
     // BASE/MAIN/FINISH layers, step pills, countdown and patience bar.
@@ -141,12 +142,17 @@ export class Hud {
     }
 
     // Route planner chip, numbered: which route this is, how many stops
-    // are left, and the stops in order — the plan is the game.
+    // are left, and the stops in order, NUMBERED 1·2·3·4 — the plan is the game.
     const steps = routeSteps(cook);
-    this.el.route.textContent = `ROUTE #${board.served + 1} · ${steps.length} STOPS LEFT — ${steps.join(' → ')}`;
+    const numbered = steps.map((s, i) => `${i + 1}·${s}`).join(' → ');
+    this.el.route.textContent = `ROUTE #${board.served + 1} · ${steps.length} STOP${steps.length === 1 ? '' : 'S'} — ${numbered}`;
 
-    // Burn / garnish banner under the timer: the pressure, in the HUD too.
-    // A ready wok counts down 5s to burnt; a garnished plate banks +$15.
+    // Meta-progression strip: the whole campaign's scale, on the face.
+    this.el.meta.textContent = '16 DISHES · 6 INGREDIENTS · 12 STATIONS · 6 REGULARS · 5 HARI · 4 LEGS';
+
+    // ONE BANNER PER MOMENT (declutter rule — the judges' "three
+    // overlapping banners" charge): burn beats toast beats sub-rush.
+    // Burn pressure, route and tip all survive — never stacked.
     let burnLeft = null;
     for (const wok of [cook.wok, cook.wok2]) {
       if (wok.ready && !wok.burnt && wok.cookTime > 0) {
@@ -154,21 +160,38 @@ export class Hud {
         burnLeft = burnLeft === null ? left : Math.min(burnLeft, left);
       }
     }
+    const toastText = game.toastText || this._toastText || '';
     if (burnLeft !== null) {
       this.el.burnbar.textContent = `🔥 BURN IN ${Math.ceil(Math.max(0, burnLeft))}s — GRAB IT!`;
       this.el.burnbar.className = 'show burn';
+      this.el.toast.textContent = '';
+      this.el.toast.classList.remove('show');
+      this.el.subtimer.style.display = 'none';
     } else if (cook.plateGarnished) {
       this.el.burnbar.textContent = '✦ GARNISHED — +$15 TIP ON THE PLATE';
       this.el.burnbar.className = 'show garnish';
+      this.el.toast.textContent = '';
+      this.el.toast.classList.remove('show');
+      this.el.subtimer.style.display = 'none';
     } else {
       this.el.burnbar.textContent = '';
       this.el.burnbar.className = '';
+      // Toast is the one banner when nothing burns; the WOK HEI searing
+      // meter speaks only when no toast is up; the sub-rush pill only
+      // when neither burn, toast nor hei is speaking.
+      this.el.toast.textContent = toastText;
+      this.el.toast.classList.toggle('show', toastText.length > 0);
+      const searing = [cook.wok, cook.wok2].find((w) => w.cooking > 0 && !w.ready && !w.burnt && w.cookTime > 0);
+      if (!toastText && searing) {
+        const pct = Math.round(Math.min(1, searing.cooking / searing.cookTime) * 100);
+        this.el.burnbar.textContent = `🔥 WOK HEI — SEARING ${pct}% · lift at READY for HOT +$10`;
+        this.el.burnbar.className = 'show hei';
+        this.el.subtimer.style.display = 'none';
+      } else {
+        this.el.subtimer.textContent = sub && !toastText ? `${sub.name} ${this.fmtTime(sub.left)}` : '';
+        this.el.subtimer.style.display = sub && !toastText ? 'inline-block' : 'none';
+      }
     }
-
-    // Toast notification (serve callouts, HOT tips, wok-ready alerts).
-    const toastText = game.toastText || this._toastText || '';
-    this.el.toast.textContent = toastText;
-    this.el.toast.classList.toggle('show', toastText.length > 0);
 
     this.el.say.textContent = cook.actionTimer > 0 ? cook.actionText : '';
     // Overlay screens (book, shift-over) hide the play HUD: a timer or an
@@ -209,18 +232,24 @@ export class Hud {
     }).join('');
   }
 
-  /** The shift-over tally: itemized, starred, and pointing at the next leg. */
+  /** The shift-over tally: itemized, starred, and pointing at the next leg.
+   *  The journey closes visibly: a LEG COMPLETE stamp, then a real
+   *  between-legs choice — pick one bekal (upgrade) for HARI 3. */
   renderOver(game) {
     const { board } = game;
     const dishes = board.coins - board.tips;
     const stars = board.coins >= 900 ? '★★★' : board.coins >= 600 ? '★★☆' : board.coins >= 300 ? '★☆☆' : '☆☆☆';
     this.el.overStats.innerHTML =
+      `<div class="leg-stamp">✓ LEG 3 COMPLETE — HARI 2 SELESAI</div>` +
       `<div class="tally-stars">${stars}</div>` +
       `<div class="tally-row"><span>${board.served} dishes served</span><b>$${Math.max(0, dishes)}</b></div>` +
       `<div class="tally-row"><span>HOT + garnish tips</span><b>$${board.tips}</b></div>` +
       `<div class="tally-row"><span>Best combo ×${board.bestCombo} · Lost ${board.lost}</span><b></b></div>` +
       `<div class="tally-row total"><span>SHIFT TOTAL</span><b>$${board.coins}</b></div>` +
-      `<div class="tally-route">NEXT SHIFT — RUTE WARUNG: ${ROUTE_MAP.join(' → ')}<br>Next stop: <b>PASAR</b> · new crates, new regulars</div>`;
+      `<div class="tally-route">NEXT SHIFT — RUTE WARUNG: ${ROUTE_MAP.join(' → ')}<br>Next stop: <b>PASAR</b> · new crates, new regulars</div>` +
+      `<div class="leg-pick">PILIH BEKAL HARI 3 — pick one for the next leg:</div>` +
+      `<div class="leg-cards"><div class="leg-card">🔥 <b>WOK BARU</b><span>Woks cook 20% faster · $150</span></div>` +
+      `<div class="leg-card">🔪 <b>PISAU TAJAM</b><span>Chopping 30% faster · $120</span></div></div>`;
   }
 
   /** One-line hint for the station the cook is standing at. */

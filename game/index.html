@@ -70,7 +70,11 @@
     background: #ffd166; border-radius: 12px; padding: 5px 16px; margin-bottom: 6px;
     box-shadow: 0 4px 14px rgba(0,0,0,.6); }
   #toast.show { display: inline-block; }
-  /* Route planner chip: the next stops, in order */
+  /* Meta-progression strip: the campaign's scale, one quiet line */
+  #meta-strip { font-size: 12px; font-weight: 800; letter-spacing: .14em;
+    color: #ffd166; opacity: .92; text-shadow: 0 2px 4px rgba(0,0,0,.9); margin-bottom: 5px; }
+  #burnbar.show.hei { display: inline-block; color: #fff; background: #e65100;
+    border: 2px solid #ff9800; }
   #route { display: inline-block; font-size: 13px; font-weight: 800; letter-spacing: .04em;
     color: #ffd166; background: rgba(24,16,10,.88); border: 2px dashed #ffd166;
     border-radius: 12px; padding: 3px 12px; margin-bottom: 5px; }
@@ -114,6 +118,15 @@
     border-bottom: 1px dashed rgba(255,209,102,.4); padding: 3px 0; }
   .tally-row.total { font-size: 22px; font-weight: 900; color: #ffd166; border-bottom: none; }
   .tally-route { margin-top: 14px; font-size: 15px; color: #ffe0b2; line-height: 1.6; }
+  /* Between-legs choice on the tally: the journey continues as a decision. */
+  .leg-stamp { display: inline-block; font-size: 17px; font-weight: 900; letter-spacing: .08em;
+    color: #1d130c; background: #aed581; border: 2px solid #66bb6a; border-radius: 10px;
+    padding: 4px 16px; margin-bottom: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.5); }
+  .leg-pick { margin-top: 14px; font-size: 15px; font-weight: 900; letter-spacing: .06em; color: #ffd166; }
+  .leg-cards { display: flex; gap: 12px; justify-content: center; margin-top: 8px; }
+  .leg-card { background: rgba(24,16,10,.92); border: 2px solid #ffd166; border-radius: 12px;
+    padding: 10px 18px; font-size: 16px; color: #fff8e7; text-align: left; }
+  .leg-card span { display: block; font-size: 12px; font-weight: 600; color: #ffe0b2; margin-top: 3px; }
   /* Recipe book + upgrade screen (B) — a real in-game screen, not a mockup */
   #book-screen { pointer-events: auto; background: rgba(20,12,6,.88); justify-content: flex-start; padding-top: 26px; overflow-y: auto; }
   #book-screen h1 { font-size: 34px; }
@@ -150,6 +163,7 @@
 <div class="hud" id="bottom">
   <div id="toast"></div>
   <div id="route"></div>
+  <div id="meta-strip"></div>
   <div id="carry"></div>
   <div id="prompt"></div>
   <div id="say"></div>

@@ -210,7 +210,7 @@ function frame() {
     promptText = '';
   }
 
-  hud.setPrompt(promptText);
+  hud.setPrompt(game.shot ? '' : promptText); // staged shots: no "WASD…" line — the frame is the game
   hud.render(game);
   world.sync(game, t);
   if (game.phase === 'title') {
