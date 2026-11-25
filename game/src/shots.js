@@ -48,6 +48,8 @@ export function applyShot(game, name) {
       ticket(1, 'nasi-goreng', 26, 44),
       ticket(2, 'mie-goreng', 34, 42),
       ticket(3, 'ayam-geprek', 12, 40),
+      ticket(4, 'soto-ayam', 38, 46),
+      ticket(5, 'gado-gado', 20, 36),
     ];
     cook.x = -1.0; cook.z = -1.6; cook.heading = Math.PI;
     cook.carrying = [{ id: 'egg', prepped: true }, { id: 'chili', prepped: true }];

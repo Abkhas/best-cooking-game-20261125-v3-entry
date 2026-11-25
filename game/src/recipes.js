@@ -34,12 +34,18 @@ export const RECIPES = [
     needs: ['chicken', 'veg', 'rice'],
     blurb: 'Chicken soup with veg, served over rice.',
   },
+  {
+    id: 'gado-gado', name: 'Gado-Gado', price: 80, cookTime: 7,
+    needs: ['veg', 'egg', 'chili'],
+    blurb: 'Blanched veg, egg and chili under peanut sauce.',
+  },
 ];
 
 /** Recipes a ticket may ask for this far into the shift (seconds elapsed). */
 export function unlockedRecipes(elapsedSec) {
   if (elapsedSec < 45) return RECIPES.slice(0, 2);
   if (elapsedSec < 100) return RECIPES.slice(0, 3);
+  if (elapsedSec < 140) return RECIPES.slice(0, 4);
   return RECIPES;
 }
 

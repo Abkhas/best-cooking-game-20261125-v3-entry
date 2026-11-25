@@ -70,20 +70,16 @@ export class Hud {
     this.el.board.innerHTML = board.tickets.map((t) => {
       const share = Math.max(0, t.patience / t.patienceMax);
       const cls = share < 0.3 ? 'low' : share < 0.55 ? 'mid' : '';
-      const dots = t.recipe.needs.map((n) => {
+      // Per-ingredient step pills: every ingredient names its step, so the
+      // ticket reads as a little route (CHOP first, then WOK).
+      const pills = t.recipe.needs.map((n) => {
         const ing = INGREDIENTS[n];
-        const prepped = ing.prep === 'chop' ? ' (chop)' : '';
-        return `<span class="dot" style="background:${ing.dot}" title="${ing.name}${prepped}"></span>`;
+        const step = ing.prep === 'chop' ? 'CHOP+WOK' : 'WOK';
+        return `<span class="t-pill"><span class="dot" style="background:${ing.dot}"></span>${ing.name} <em>${step}</em></span>`;
       }).join('');
-      const chopNames = t.recipe.needs
-        .filter((n) => INGREDIENTS[n].prep === 'chop')
-        .map((n) => INGREDIENTS[n].name);
-      const prep = chopNames.length
-        ? `<div class="t-prep">✂ chop: ${chopNames.join(', ')}</div>` : '';
       return `<div class="ticket ${cls} ${t.flash > 0 ? 'flash' : ''}">
-        <div class="t-name">${t.recipe.name}<span class="t-secs">${Math.ceil(t.patience)}s</span></div>
-        <div class="t-needs">${dots}<span class="t-price">$${t.recipe.price}</span></div>
-        ${prep}
+        <div class="t-name">${t.recipe.name}<span class="t-secs">${Math.ceil(t.patience)}s · $${t.recipe.price}</span></div>
+        <div class="t-needs">${pills}</div>
         <div class="t-bar"><div class="t-fill" style="width:${Math.round(share * 100)}%"></div></div>
       </div>`;
     }).join('') || '<div class="ticket empty">No orders yet — tickets incoming…</div>';

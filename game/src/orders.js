@@ -20,7 +20,7 @@ export class OrderBoard {
     this.comboTimer = 0;
   }
 
-  get maxTickets() { return 4; }
+  get maxTickets() { return 5; }
 
   spawnInterval(elapsedSec) {
     return Math.max(7, 14 - elapsedSec / 25);

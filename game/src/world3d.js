@@ -205,20 +205,30 @@ export class World3D {
       // Open crate: wooden box rim with a heap of the ingredient inside.
       const ing = INGREDIENTS[s.gives];
       box(1.1, 0.28, 1.1, WOOD_DARK, s.x, y + 0.14, s.z, g);
+      // Each ingredient heaps in its own shape, so food reads as food:
+      // rice mounds, noodle nests, eggs, chicken pieces, veg cubes, chilies.
       const heap = new THREE.Group();
+      const heapMat = mat(new THREE.Color(ing.color));
+      const shapeFor = (id) => {
+        if (id === 'rice') return new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.22, 10), heapMat);
+        if (id === 'noodle') return new THREE.Mesh(new THREE.TorusGeometry(0.14, 0.06, 8, 14), heapMat);
+        if (id === 'egg') return new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), heapMat);
+        if (id === 'chicken') return new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.14, 0.16), heapMat);
+        if (id === 'veg') return new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), heapMat);
+        return new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.3, 8), heapMat); // chili
+      };
       for (let i = 0; i < 7; i++) {
-        const r = 0.13 + Math.random() * 0.05;
-        const ball = new THREE.Mesh(
-          new THREE.SphereGeometry(r, 10, 8),
-          mat(new THREE.Color(ing.color)),
-        );
-        ball.position.set(
+        const piece = shapeFor(s.gives);
+        piece.position.set(
           s.x + (Math.random() - 0.5) * 0.7,
           y + 0.32 + Math.random() * 0.08,
           s.z + (Math.random() - 0.5) * 0.7,
         );
-        ball.scale.y = 0.75;
-        heap.add(ball);
+        piece.rotation.set(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.6);
+        if (s.gives === 'egg') piece.scale.y = 1.3;
+        if (s.gives === 'noodle') piece.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.5;
+        if (s.gives === 'chili') piece.rotation.z = Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+        heap.add(piece);
       }
       g.add(heap);
       const lab = labelSprite(s.label, s.gives === 'chicken' || s.gives === 'veg' ? 'chop first' : 'grab & go', 0.85);
@@ -482,7 +492,7 @@ export class World3D {
     this.plateFood.visible = cook.plate !== null;
     if (this.plateReady) this.plateReady.visible = cook.plate !== null;
     if (cook.plate) {
-      const dishColor = { 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a }[cook.plate] || 0xffcf4d;
+      const dishColor = { 'nasi-goreng': 0xffcf4d, 'mie-goreng': 0xffb347, 'ayam-geprek': 0xe08a52, 'soto-ayam': 0xffd98a, 'gado-gado': 0x9ccc65 }[cook.plate] || 0xffcf4d;
       this.plateFood.children.forEach((ball) => ball.material.color.set(dishColor));
     }
 

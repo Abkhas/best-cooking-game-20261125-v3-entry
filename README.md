@@ -24,6 +24,7 @@ ticket's patience runs out.
 | Mie Goreng | noodle, egg, veg (chopped) | $70 | 7s |
 | Ayam Geprek | chicken (chopped), chili, rice | $90 | 8s |
 | Soto Ayam | chicken (chopped), veg (chopped), rice | $100 | 9s |
+| Gado-Gado | veg (chopped), egg, chili | $80 | 7s |
 
 New recipes unlock as the shift goes on, tickets arrive faster, and patience
 shrinks — the rush grows without adding chores. A dish left in the wok 5
